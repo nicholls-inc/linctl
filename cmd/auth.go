@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+var oauthFlag bool
+
 // authCmd represents the auth command
 var authCmd = &cobra.Command{
 	Use:   "auth",
@@ -31,7 +33,7 @@ Examples:
 var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Login to Linear",
-	Long:  `Authenticate with Linear using Personal API Key.`,
+	Long:  `Authenticate with Linear using Personal API Key or OAuth.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		plaintext := viper.GetBool("plaintext")
 		jsonOut := viper.GetBool("json")
@@ -41,7 +43,13 @@ var loginCmd = &cobra.Command{
 			fmt.Println()
 		}
 
-		err := auth.Login(plaintext, jsonOut)
+		var err error
+		if oauthFlag {
+			err = auth.LoginWithOAuth(plaintext, jsonOut)
+		} else {
+			err = auth.Login(plaintext, jsonOut)
+		}
+		
 		if err != nil {
 			output.Error(fmt.Sprintf("Authentication failed: %v", err), plaintext, jsonOut)
 			os.Exit(1)
@@ -83,15 +91,19 @@ var statusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		authMethod, _ := auth.GetAuthMethod()
+
 		if jsonOut {
 			output.JSON(map[string]interface{}{
 				"authenticated": true,
+				"method":        authMethod,
 				"user":          user,
 			})
 		} else if plaintext {
-			fmt.Printf("Authenticated as: %s (%s)\n", user.Name, user.Email)
+			fmt.Printf("Authenticated as: %s (%s) via %s\n", user.Name, user.Email, authMethod)
 		} else {
 			fmt.Println(color.New(color.FgGreen).Sprint("✅ Authenticated"))
+			fmt.Printf("Method: %s\n", color.New(color.FgCyan).Sprint(authMethod))
 			fmt.Printf("User: %s\n", color.New(color.FgCyan).Sprint(user.Name))
 			fmt.Printf("Email: %s\n", color.New(color.FgCyan).Sprint(user.Email))
 		}
@@ -139,6 +151,9 @@ func init() {
 	authCmd.AddCommand(loginCmd)
 	authCmd.AddCommand(statusCmd)
 	authCmd.AddCommand(logoutCmd)
+
+	// Add OAuth flag to login command
+	loginCmd.Flags().BoolVar(&oauthFlag, "oauth", false, "Use OAuth authentication instead of API key")
 
 	// Add whoami as a top-level command too
 	rootCmd.AddCommand(whoamiCmd)
