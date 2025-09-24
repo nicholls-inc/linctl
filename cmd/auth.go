@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/dorkitude/linctl/pkg/auth"
 	"github.com/dorkitude/linctl/pkg/output"
@@ -71,67 +72,88 @@ var loginCmd = &cobra.Command{
 var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Check authentication status",
-	Long:  `Check if you are currently authenticated with Linear.`,
+	Long:  `Check if you are currently authenticated with Linear and get helpful guidance.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		plaintext := viper.GetBool("plaintext")
 		jsonOut := viper.GetBool("json")
 
-		user, err := auth.GetCurrentUser()
+		status, err := auth.GetAuthStatus()
 		if err != nil {
-			if !plaintext && !jsonOut {
-				fmt.Println(color.New(color.FgRed).Sprint("❌ Not authenticated"))
-			} else if jsonOut {
+			if jsonOut {
 				output.JSON(map[string]interface{}{
 					"authenticated": false,
 					"error":         err.Error(),
 				})
 			} else {
-				fmt.Println("Not authenticated")
+				output.Error(fmt.Sprintf("Failed to get auth status: %v", err), plaintext, jsonOut)
 			}
 			os.Exit(1)
 		}
 
-		authMethod, _ := auth.GetAuthMethod()
-
-		// Get OAuth token info if using OAuth
-		var oauthInfo map[string]interface{}
-		if authMethod == "oauth" {
-			oauthInfo, _ = auth.GetOAuthTokenInfo()
+		if jsonOut {
+			output.JSON(status)
+			return
 		}
 
-		if jsonOut {
-			result := map[string]interface{}{
-				"authenticated": true,
-				"method":        authMethod,
-				"user":          user,
-			}
-			if oauthInfo != nil {
-				result["oauth"] = oauthInfo
-			}
-			output.JSON(result)
-		} else if plaintext {
-			fmt.Printf("Authenticated as: %s (%s) via %s\n", user.Name, user.Email, authMethod)
-			if oauthInfo != nil && oauthInfo["valid"].(bool) {
-				if expiresIn, ok := oauthInfo["expires_in_human"].(string); ok {
-					fmt.Printf("Token expires in: %s\n", expiresIn)
+		if !status.Authenticated {
+			if plaintext {
+				fmt.Println("Not authenticated")
+				for _, suggestion := range status.Suggestions {
+					fmt.Printf("Suggestion: %s\n", suggestion)
+				}
+			} else {
+				fmt.Println(color.New(color.FgRed).Sprint("❌ Not authenticated"))
+				fmt.Println()
+				for _, suggestion := range status.Suggestions {
+					fmt.Printf("%s %s\n", color.New(color.FgBlue).Sprint("💡"), suggestion)
 				}
 			}
+			os.Exit(1)
+		}
+
+		// Authenticated - show status
+		if plaintext {
+			fmt.Printf("Authenticated as: %s (%s) via %s\n", status.User.Name, status.User.Email, status.Method)
+			if status.TokenExpiry != nil {
+				fmt.Printf("Token expires: %s\n", *status.TokenExpiry)
+			}
+			if len(status.Scopes) > 0 {
+				fmt.Printf("Scopes: %s\n", strings.Join(status.Scopes, ", "))
+			}
+			for _, suggestion := range status.Suggestions {
+				fmt.Printf("Suggestion: %s\n", suggestion)
+			}
 		} else {
+			// Enhanced colorful output
 			fmt.Println(color.New(color.FgGreen).Sprint("✅ Authenticated"))
-			fmt.Printf("Method: %s\n", color.New(color.FgCyan).Sprint(authMethod))
-			fmt.Printf("User: %s\n", color.New(color.FgCyan).Sprint(user.Name))
-			fmt.Printf("Email: %s\n", color.New(color.FgCyan).Sprint(user.Email))
 			
-			if oauthInfo != nil {
-				if valid, ok := oauthInfo["valid"].(bool); ok && valid {
-					if expiresIn, ok := oauthInfo["expires_in_human"].(string); ok {
-						fmt.Printf("Token expires in: %s\n", color.New(color.FgYellow).Sprint(expiresIn))
-					}
-					if scope, ok := oauthInfo["scope"].(string); ok {
-						fmt.Printf("Scopes: %s\n", color.New(color.FgCyan).Sprint(scope))
-					}
-				} else {
-					fmt.Println(color.New(color.FgRed).Sprint("⚠️  OAuth token is expired or invalid"))
+			// Show method with appropriate icon
+			methodIcon := "🔑"
+			if status.Method == "oauth" {
+				methodIcon = "🔐"
+			}
+			fmt.Printf("%s Method: %s\n", methodIcon, color.New(color.FgCyan).Sprint(status.Method))
+			
+			// User info
+			fmt.Printf("👤 User: %s (%s)\n", 
+				color.New(color.FgCyan).Sprint(status.User.Name),
+				color.New(color.FgCyan).Sprint(status.User.Email))
+			
+			// Token expiry for OAuth
+			if status.TokenExpiry != nil {
+				fmt.Printf("🔑 Token expires: %s\n", color.New(color.FgYellow).Sprint(*status.TokenExpiry))
+			}
+			
+			// Scopes for OAuth
+			if len(status.Scopes) > 0 {
+				fmt.Printf("📋 Scopes: %s\n", color.New(color.FgCyan).Sprint(strings.Join(status.Scopes, ", ")))
+			}
+			
+			// Show suggestions if any
+			if len(status.Suggestions) > 0 {
+				fmt.Println()
+				for _, suggestion := range status.Suggestions {
+					fmt.Printf("%s %s\n", color.New(color.FgBlue).Sprint("💡"), suggestion)
 				}
 			}
 		}
@@ -177,9 +199,18 @@ var refreshCmd = &cobra.Command{
 			fmt.Println(color.New(color.FgYellow).Sprint("🔄 Refreshing OAuth token..."))
 		}
 
-		err := auth.RefreshOAuthToken()
+		err := auth.RefreshOAuthTokenWithFeedback()
 		if err != nil {
-			output.Error(fmt.Sprintf("Token refresh failed: %v", err), plaintext, jsonOut)
+			if jsonOut {
+				output.JSON(map[string]interface{}{
+					"status": "error",
+					"error":  err.Error(),
+				})
+			} else if plaintext {
+				fmt.Printf("Token refresh failed: %v\n", err)
+			} else {
+				fmt.Printf("%s %v\n", color.New(color.FgRed).Sprint("❌"), err)
+			}
 			os.Exit(1)
 		}
 
