@@ -371,7 +371,11 @@ var projectGetCmd = &cobra.Command{
 			if project.ProjectUpdates != nil && len(project.ProjectUpdates.Nodes) > 0 {
 				fmt.Printf("\n## Recent Project Updates\n")
 				for _, update := range project.ProjectUpdates.Nodes {
-					fmt.Printf("\n### %s by %s\n", update.CreatedAt.Format("2006-01-02 15:04"), update.User.Name)
+					authorName := "Unknown"
+					if update.User != nil {
+						authorName = update.User.Name
+					}
+					fmt.Printf("\n### %s by %s\n", update.CreatedAt.Format("2006-01-02 15:04"), authorName)
 					if update.EditedAt != nil {
 						fmt.Printf("*(edited %s)*\n", update.EditedAt.Format("2006-01-02 15:04"))
 					}

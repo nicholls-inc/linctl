@@ -85,7 +85,11 @@ var commentListCmd = &cobra.Command{
 				if i > 0 {
 					fmt.Println("---")
 				}
-				fmt.Printf("Author: %s\n", comment.User.Name)
+				authorName := "Unknown"
+				if comment.User != nil {
+					authorName = comment.User.Name
+				}
+				fmt.Printf("Author: %s\n", authorName)
 				fmt.Printf("Date: %s\n", comment.CreatedAt.Format("2006-01-02 15:04:05"))
 				fmt.Printf("Comment:\n%s\n", comment.Body)
 			}
@@ -110,8 +114,12 @@ var commentListCmd = &cobra.Command{
 
 				// Header with author and time
 				timeAgo := formatTimeAgo(comment.CreatedAt)
+				authorName := "Unknown"
+				if comment.User != nil {
+					authorName = comment.User.Name
+				}
 				fmt.Printf("%s %s %s\n",
-					color.New(color.FgCyan, color.Bold).Sprint(comment.User.Name),
+					color.New(color.FgCyan, color.Bold).Sprint(authorName),
 					color.New(color.FgWhite, color.Faint).Sprint("•"),
 					color.New(color.FgWhite, color.Faint).Sprint(timeAgo))
 
@@ -176,7 +184,11 @@ var commentCreateCmd = &cobra.Command{
 			output.JSON(comment)
 		} else if plaintext {
 			fmt.Printf("Created comment on %s\n", issueID)
-			fmt.Printf("Author: %s\n", comment.User.Name)
+			authorName := "Unknown"
+			if comment.User != nil {
+				authorName = comment.User.Name
+			}
+			fmt.Printf("Author: %s\n", authorName)
 			fmt.Printf("Date: %s\n", comment.CreatedAt.Format("2006-01-02 15:04:05"))
 		} else {
 			fmt.Printf("%s Added comment to %s\n",
