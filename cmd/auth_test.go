@@ -13,18 +13,59 @@ import (
 	"github.com/spf13/viper"
 )
 
-func TestAuthCommands_Integration(t *testing.T) {
-	// Create temporary directory for test config files
-	tempDir, err := os.MkdirTemp("", "linctl-auth-cmd-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
+// Helper function to create isolated test environment for cmd tests
+func withIsolatedAuthEnvironment(t *testing.T, fn func()) {
+	t.Helper()
+	
+	// Save original environment variables
+	originalVars := map[string]string{
+		"LINEAR_CLIENT_ID":         os.Getenv("LINEAR_CLIENT_ID"),
+		"LINEAR_CLIENT_SECRET":     os.Getenv("LINEAR_CLIENT_SECRET"),
+		"LINEAR_BASE_URL":          os.Getenv("LINEAR_BASE_URL"),
+		"LINEAR_SCOPES":            os.Getenv("LINEAR_SCOPES"),
+		"LINEAR_DEFAULT_ACTOR":     os.Getenv("LINEAR_DEFAULT_ACTOR"),
+		"LINEAR_DEFAULT_AVATAR_URL": os.Getenv("LINEAR_DEFAULT_AVATAR_URL"),
 	}
-	defer os.RemoveAll(tempDir)
-
+	
+	// Clear OAuth environment to prevent interference
+	os.Unsetenv("LINEAR_CLIENT_ID")
+	os.Unsetenv("LINEAR_CLIENT_SECRET")
+	os.Unsetenv("LINEAR_BASE_URL")
+	os.Unsetenv("LINEAR_SCOPES")
+	os.Unsetenv("LINEAR_DEFAULT_ACTOR")
+	os.Unsetenv("LINEAR_DEFAULT_AVATAR_URL")
+	
+	// Create temporary directory for test config files
+	tempDir := t.TempDir()
+	
 	// Override the config path for testing
 	originalHome := os.Getenv("HOME")
 	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", originalHome)
+	
+	// Cleanup function
+	defer func() {
+		// Restore original HOME
+		if originalHome == "" {
+			os.Unsetenv("HOME")
+		} else {
+			os.Setenv("HOME", originalHome)
+		}
+		
+		// Restore original environment variables
+		for key, value := range originalVars {
+			if value == "" {
+				os.Unsetenv(key)
+			} else {
+				os.Setenv(key, value)
+			}
+		}
+	}()
+	
+	fn()
+}
+
+func TestAuthCommands_Integration(t *testing.T) {
+	withIsolatedAuthEnvironment(t, func() {
 
 	// Note: status_not_authenticated test removed because it calls os.Exit(1)
 
@@ -94,21 +135,10 @@ func TestAuthCommands_Integration(t *testing.T) {
 			t.Error("Expected whoami to be available as top-level command")
 		}
 	})
+	}) // Close withIsolatedAuthEnvironment
 }
 
 func TestStatusCommand_WithAuthentication(t *testing.T) {
-	// Create temporary directory for test config files
-	tempDir, err := os.MkdirTemp("", "linctl-auth-cmd-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Override the config path for testing
-	originalHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", originalHome)
-
 	tests := []struct {
 		name           string
 		config         auth.AuthConfig
@@ -140,44 +170,47 @@ func TestStatusCommand_WithAuthentication(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save test config using internal function (we need to access it)
-			configPath := filepath.Join(tempDir, ".linctl-auth.json")
-			configData, err := json.MarshalIndent(tt.config, "", "  ")
-			if err != nil {
-				t.Fatalf("Failed to marshal config: %v", err)
-			}
-			err = os.WriteFile(configPath, configData, 0600)
-			if err != nil {
-				t.Fatalf("Failed to write config file: %v", err)
-			}
-
-			// Test GetAuthMethod function
-			method, err := auth.GetAuthMethod()
-			if err != nil {
-				t.Fatalf("Failed to get auth method: %v", err)
-			}
-
-			if method != tt.expectedMethod {
-				t.Errorf("Expected auth method %s, got %s", tt.expectedMethod, method)
-			}
-
-			// Test GetAuthHeader function
-			header, err := auth.GetAuthHeader()
-			if err != nil {
-				t.Fatalf("Failed to get auth header: %v", err)
-			}
-
-			// Verify header format based on method
-			if tt.expectedMethod == "oauth" {
-				expectedHeader := "Bearer " + tt.config.OAuthToken
-				if header != expectedHeader {
-					t.Errorf("Expected OAuth header %s, got %s", expectedHeader, header)
+			withIsolatedAuthEnvironment(t, func() {
+				// Save test config using internal function (we need to access it)
+				homeDir := os.Getenv("HOME")
+				configPath := filepath.Join(homeDir, ".linctl-auth.json")
+				configData, err := json.MarshalIndent(tt.config, "", "  ")
+				if err != nil {
+					t.Fatalf("Failed to marshal config: %v", err)
 				}
-			} else if tt.expectedMethod == "api_key" {
-				if header != tt.config.APIKey {
-					t.Errorf("Expected API key header %s, got %s", tt.config.APIKey, header)
+				err = os.WriteFile(configPath, configData, 0600)
+				if err != nil {
+					t.Fatalf("Failed to write config file: %v", err)
 				}
-			}
+
+				// Test GetAuthMethod function
+				method, err := auth.GetAuthMethod()
+				if err != nil {
+					t.Fatalf("Failed to get auth method: %v", err)
+				}
+
+				if method != tt.expectedMethod {
+					t.Errorf("Expected auth method %s, got %s", tt.expectedMethod, method)
+				}
+
+				// Test GetAuthHeader function
+				header, err := auth.GetAuthHeader()
+				if err != nil {
+					t.Fatalf("Failed to get auth header: %v", err)
+				}
+
+				// Verify header format based on method
+				if tt.expectedMethod == "oauth" {
+					expectedHeader := "Bearer " + tt.config.OAuthToken
+					if header != expectedHeader {
+						t.Errorf("Expected OAuth header %s, got %s", expectedHeader, header)
+					}
+				} else if tt.expectedMethod == "api_key" {
+					if header != tt.config.APIKey {
+						t.Errorf("Expected API key header %s, got %s", tt.config.APIKey, header)
+					}
+				}
+			})
 		})
 	}
 }

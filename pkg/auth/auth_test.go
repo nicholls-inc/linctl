@@ -76,18 +76,6 @@ func TestAuthConfig_JSONSerialization(t *testing.T) {
 }
 
 func TestGetAuthHeader(t *testing.T) {
-	// Create temporary directory for test config files
-	tempDir, err := os.MkdirTemp("", "linctl-auth-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Override the config path for testing
-	originalHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", originalHome)
-
 	tests := []struct {
 		name           string
 		config         AuthConfig
@@ -125,31 +113,35 @@ func TestGetAuthHeader(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save test config
-			err := saveAuth(tt.config)
-			if err != nil {
-				t.Fatalf("Failed to save auth config: %v", err)
-			}
+			WithIsolatedEnvironment(t, func(env *TestEnvironment) {
+				env.WithMockedConfigPath(func() {
+					// Save test config
+					err := env.MockAuthConfig(tt.config)
+					if err != nil {
+						t.Fatalf("Failed to save auth config: %v", err)
+					}
 
-			header, err := GetAuthHeader()
+					header, err := GetAuthHeader()
 
-			if tt.expectedError != "" {
-				if err == nil {
-					t.Fatalf("Expected error %s, got nil", tt.expectedError)
-				}
-				if !strings.Contains(err.Error(), tt.expectedError) {
-					t.Errorf("Expected error to contain %s, got %s", tt.expectedError, err.Error())
-				}
-				return
-			}
+					if tt.expectedError != "" {
+						if err == nil {
+							t.Fatalf("Expected error %s, got nil", tt.expectedError)
+						}
+						if !strings.Contains(err.Error(), tt.expectedError) {
+							t.Errorf("Expected error to contain %s, got %s", tt.expectedError, err.Error())
+						}
+						return
+					}
 
-			if err != nil {
-				t.Fatalf("Expected no error, got %v", err)
-			}
+					if err != nil {
+						t.Fatalf("Expected no error, got %v", err)
+					}
 
-			if header != tt.expectedHeader {
-				t.Errorf("Expected header %s, got %s", tt.expectedHeader, header)
-			}
+					if header != tt.expectedHeader {
+						t.Errorf("Expected header %s, got %s", tt.expectedHeader, header)
+					}
+				})
+			})
 		})
 	}
 }
@@ -225,18 +217,6 @@ func TestGetAuthHeader_EnvironmentOAuthPriority(t *testing.T) {
 }
 
 func TestGetAuthMethod(t *testing.T) {
-	// Create temporary directory for test config files
-	tempDir, err := os.MkdirTemp("", "linctl-auth-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Override the config path for testing
-	originalHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	defer os.Setenv("HOME", originalHome)
-
 	tests := []struct {
 		name           string
 		config         AuthConfig
@@ -274,31 +254,35 @@ func TestGetAuthMethod(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save test config
-			err := saveAuth(tt.config)
-			if err != nil {
-				t.Fatalf("Failed to save auth config: %v", err)
-			}
+			WithIsolatedEnvironment(t, func(env *TestEnvironment) {
+				env.WithMockedConfigPath(func() {
+					// Save test config
+					err := env.MockAuthConfig(tt.config)
+					if err != nil {
+						t.Fatalf("Failed to save auth config: %v", err)
+					}
 
-			method, err := GetAuthMethod()
+					method, err := GetAuthMethod()
 
-			if tt.expectedError != "" {
-				if err == nil {
-					t.Fatalf("Expected error %s, got nil", tt.expectedError)
-				}
-				if !strings.Contains(err.Error(), tt.expectedError) {
-					t.Errorf("Expected error to contain %s, got %s", tt.expectedError, err.Error())
-				}
-				return
-			}
+					if tt.expectedError != "" {
+						if err == nil {
+							t.Fatalf("Expected error %s, got nil", tt.expectedError)
+						}
+						if !strings.Contains(err.Error(), tt.expectedError) {
+							t.Errorf("Expected error to contain %s, got %s", tt.expectedError, err.Error())
+						}
+						return
+					}
 
-			if err != nil {
-				t.Fatalf("Expected no error, got %v", err)
-			}
+					if err != nil {
+						t.Fatalf("Expected no error, got %v", err)
+					}
 
-			if method != tt.expectedMethod {
-				t.Errorf("Expected method %s, got %s", tt.expectedMethod, method)
-			}
+					if method != tt.expectedMethod {
+						t.Errorf("Expected method %s, got %s", tt.expectedMethod, method)
+					}
+				})
+			})
 		})
 	}
 }
