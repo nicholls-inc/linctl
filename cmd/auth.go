@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/dorkitude/linctl/pkg/auth"
 	"github.com/dorkitude/linctl/pkg/output"
@@ -236,12 +237,99 @@ var whoamiCmd = &cobra.Command{
 	},
 }
 
+var authAgentStatusCmd = &cobra.Command{
+	Use:   "agent-status",
+	Short: "Show agent-optimized status",
+	Long:  `Display comprehensive status information optimized for agent workflows, including OAuth configuration, environment variables, and actor settings.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		plaintext := viper.GetBool("plaintext")
+		jsonOut := viper.GetBool("json")
+
+		// Import agent package for this command
+		// Note: This would require importing the agent package
+		// For now, we'll provide a simplified version using existing auth functions
+		
+		status, err := auth.GetAuthStatus()
+		if err != nil {
+			if jsonOut {
+				output.JSON(map[string]interface{}{
+					"success": false,
+					"error":   err.Error(),
+				})
+			} else {
+				output.Error(fmt.Sprintf("Failed to get status: %v", err), plaintext, jsonOut)
+			}
+			os.Exit(1)
+		}
+
+		// Get OAuth token info for additional details
+		oauthInfo, _ := auth.GetOAuthTokenInfo()
+		
+		// Enhanced status for agents
+		agentStatus := map[string]interface{}{
+			"success":        status.Authenticated,
+			"authenticated":  status.Authenticated,
+			"method":         status.Method,
+			"user":           status.User,
+			"token_expires_at": status.TokenExpiry,
+			"scopes":         status.Scopes,
+			"suggestions":    status.Suggestions,
+			"environment":    status.Environment,
+			"oauth_info":     oauthInfo,
+			"timestamp":      time.Now().UTC().Format(time.RFC3339),
+		}
+
+		if jsonOut {
+			output.JSON(agentStatus)
+		} else {
+			// Provide human-readable output for non-JSON mode
+			if status.Authenticated {
+				if plaintext {
+					fmt.Printf("Authenticated: true\n")
+					fmt.Printf("Method: %s\n", status.Method)
+					if status.User != nil {
+						fmt.Printf("User: %s (%s)\n", status.User.Name, status.User.Email)
+					}
+				} else {
+					fmt.Println(color.New(color.FgGreen).Sprint("✅ Agent Status: Ready"))
+					fmt.Printf("🔐 Method: %s\n", color.New(color.FgCyan).Sprint(status.Method))
+					if status.User != nil {
+						fmt.Printf("👤 User: %s (%s)\n", 
+							color.New(color.FgCyan).Sprint(status.User.Name),
+							color.New(color.FgCyan).Sprint(status.User.Email))
+					}
+				}
+			} else {
+				if plaintext {
+					fmt.Printf("Authenticated: false\n")
+				} else {
+					fmt.Println(color.New(color.FgRed).Sprint("❌ Agent Status: Not Ready"))
+				}
+			}
+			
+			// Show suggestions
+			for _, suggestion := range status.Suggestions {
+				if plaintext {
+					fmt.Printf("Suggestion: %s\n", suggestion)
+				} else {
+					fmt.Printf("%s %s\n", color.New(color.FgBlue).Sprint("💡"), suggestion)
+				}
+			}
+		}
+
+		if !status.Authenticated {
+			os.Exit(1)
+		}
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(authCmd)
 	authCmd.AddCommand(loginCmd)
 	authCmd.AddCommand(statusCmd)
 	authCmd.AddCommand(refreshCmd)
 	authCmd.AddCommand(logoutCmd)
+	authCmd.AddCommand(authAgentStatusCmd)
 
 	// Add OAuth flag to login command
 	loginCmd.Flags().BoolVar(&oauthFlag, "oauth", false, "Use OAuth authentication instead of API key")

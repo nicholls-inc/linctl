@@ -196,3 +196,45 @@ func GetEnvironmentStatus() map[string]interface{} {
 
 	return status
 }
+
+// ValidateEnvironmentForAgent validates environment configuration for agent workflows
+func ValidateEnvironmentForAgent() error {
+	config, err := LoadFromEnvironment()
+	if err != nil {
+		return fmt.Errorf("failed to load OAuth configuration: %w", err)
+	}
+
+	if !config.IsComplete() {
+		return fmt.Errorf("incomplete OAuth configuration: LINEAR_CLIENT_ID and LINEAR_CLIENT_SECRET must be set")
+	}
+
+	if err := config.Validate(); err != nil {
+		return fmt.Errorf("invalid OAuth configuration: %w", err)
+	}
+
+	return nil
+}
+
+// GetAgentConfiguration returns a complete configuration for agent workflows
+func GetAgentConfiguration() map[string]interface{} {
+	config, _ := LoadFromEnvironment()
+	actorConfig := LoadActorFromEnvironment()
+	
+	result := map[string]interface{}{
+		"oauth_configured":    config != nil && config.IsComplete(),
+		"actor_configured":    actorConfig.IsConfigured(),
+		"environment_status":  GetEnvironmentStatus(),
+	}
+
+	if config != nil && config.IsComplete() {
+		result["scopes"] = config.Scopes
+		result["base_url"] = config.BaseURL
+	}
+
+	if actorConfig.IsConfigured() {
+		result["default_actor"] = actorConfig.DefaultActor
+		result["default_avatar_url"] = actorConfig.DefaultAvatarURL
+	}
+
+	return result
+}
