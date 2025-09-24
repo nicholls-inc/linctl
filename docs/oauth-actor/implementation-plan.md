@@ -216,47 +216,165 @@ LINEAR_DEFAULT_AVATAR_URL="https://example.com/agent.png"
 
 ## Phase 4: Enhanced Authentication UX (Week 4)
 
-**Goal**: Improve authentication user experience and add advanced features
+**Goal**: Improve authentication user experience with focus on core value and simplicity
+
+### Design Philosophy
+- **Automatic Priority System**: OAuth takes priority over API key, no manual switching needed
+- **Seamless Fallback**: Graceful degradation from OAuth to API key
+- **Clear Guidance**: Help users understand their auth status and suggest improvements
+- **Minimal Complexity**: Avoid feature bloat, focus on essential functionality
 
 ### Deliverables
 
-#### 4.1 Enhanced Auth Commands
+#### 4.1 Simplified Auth Commands
 ```bash
-linctl auth login --oauth          # OAuth flow
-linctl auth login --api-key        # API key flow (default for backward compatibility)
+linctl auth login --oauth          # OAuth setup flow
+linctl auth login                  # API key setup (existing, default for backward compatibility)
 linctl auth refresh                # Refresh OAuth token
-linctl auth switch --method oauth  # Switch between auth methods
 linctl auth logout                 # Clear all credentials
+linctl auth status                 # Enhanced status with guidance
 ```
 
-#### 4.2 Authentication Method Detection
-Automatic detection and handling of authentication methods:
-```go
-func DetectAuthMethod() (AuthMethod, error)
-func GetBestAvailableAuth() (string, AuthMethod, error)
-```
-
-#### 4.3 Enhanced Status Command
-Detailed authentication status:
+#### 4.2 Enhanced Status Command
+Intelligent status reporting with user guidance:
 ```bash
-linctl auth status --json
-# Output:
+# OAuth authenticated
+$ linctl auth status
+✅ Authenticated via OAuth
+👤 User: John Doe (john@example.com)
+🔑 Token expires: 2024-01-15 10:30 UTC (in 23 hours)
+📋 Scopes: read, write, issues:create, comments:create
+
+# API key authenticated  
+$ linctl auth status
+✅ Authenticated via API Key
+👤 User: John Doe (john@example.com)
+💡 Consider upgrading to OAuth for enhanced features: linctl auth login --oauth
+
+# JSON output for automation
+$ linctl auth status --json
 {
   "authenticated": true,
   "method": "oauth",
-  "user": {"name": "...", "email": "..."},
+  "user": {"name": "John Doe", "email": "john@example.com"},
   "token_expires_at": "2024-01-15T10:30:00Z",
-  "scopes": ["read", "write", "issues:create"]
+  "scopes": ["read", "write", "issues:create", "comments:create"],
+  "suggestions": []
 }
 ```
 
-#### 4.4 Migration Helper
-Help users migrate from API key to OAuth:
+#### 4.3 Smart OAuth Login
+Enhanced OAuth login with existing auth detection:
 ```bash
-linctl auth migrate --to oauth
+$ linctl auth login --oauth
+ℹ️  Detected existing API key authentication
+🔄 Setting up OAuth (API key will remain as fallback)
+🌐 Opening browser for Linear OAuth authorization...
+✅ OAuth setup complete! Future commands will use OAuth automatically.
 ```
 
-**Success Criteria**: Seamless authentication experience with clear status reporting and easy migration
+#### 4.4 Robust Token Management
+Automatic token refresh with clear error handling:
+```go
+// Enhanced token refresh with user-friendly errors
+func RefreshOAuthTokenWithFeedback() error {
+    // Attempt refresh
+    // On failure, provide clear guidance:
+    // "OAuth token expired and refresh failed. Please re-authenticate: linctl auth login --oauth"
+}
+
+// Smart auth header with automatic fallback
+func GetAuthHeader() (string, error) {
+    // 1. Try OAuth with automatic refresh
+    // 2. Fall back to API key
+    // 3. Provide clear error with next steps
+}
+```
+
+#### 4.5 Clear Error Messages and Guidance
+User-friendly error messages with actionable guidance:
+```bash
+# Token expired
+$ linctl issue list
+❌ OAuth token expired and refresh failed
+💡 Please re-authenticate: linctl auth login --oauth
+
+# No authentication
+$ linctl issue list  
+❌ Not authenticated
+💡 Set up authentication: linctl auth login --oauth (recommended) or linctl auth login
+
+# Network issues
+$ linctl issue list
+❌ Authentication failed: network error
+💡 Check your internet connection and try again
+```
+
+#### 4.6 Environment Variable Documentation
+Clear guidance on environment-based configuration:
+```bash
+# OAuth configuration
+export LINEAR_CLIENT_ID="your-oauth-client-id"
+export LINEAR_CLIENT_SECRET="your-oauth-client-secret"
+
+# API key configuration (fallback)
+export LINEAR_API_KEY="your-api-key"
+
+# Actor defaults (works with both auth methods)
+export LINEAR_DEFAULT_ACTOR="AI Agent"
+export LINEAR_DEFAULT_AVATAR_URL="https://example.com/agent.png"
+```
+
+### Implementation Details
+
+#### 4.7 Enhanced Auth Status Logic
+```go
+type AuthStatus struct {
+    Authenticated bool              `json:"authenticated"`
+    Method        string            `json:"method"`        // "oauth", "api_key", or "none"
+    User          *User             `json:"user,omitempty"`
+    TokenExpiry   *time.Time        `json:"token_expires_at,omitempty"`
+    Scopes        []string          `json:"scopes,omitempty"`
+    Suggestions   []string          `json:"suggestions,omitempty"`
+}
+
+func GetAuthStatus() (*AuthStatus, error) {
+    // Determine current auth method and status
+    // Add helpful suggestions based on current state
+    // Return comprehensive status information
+}
+```
+
+#### 4.8 Automatic Priority System (Already Implemented)
+The existing `GetAuthHeader()` function already implements smart priority:
+1. **OAuth with automatic refresh** (highest priority)
+2. **Stored OAuth token** (medium priority)  
+3. **API key fallback** (lowest priority)
+4. **Clear error** with guidance (no auth found)
+
+### Removed Features (Simplified Approach)
+
+#### ❌ `linctl auth switch` - Not Needed
+- **Why removed**: Automatic priority system makes manual switching unnecessary
+- **Alternative**: Users control method via environment variables or login commands
+- **Benefit**: Reduces complexity, eliminates user confusion
+
+#### ❌ `linctl auth migrate` - Not Essential
+- **Why removed**: Smart OAuth login handles migration naturally
+- **Alternative**: Enhanced `auth status` suggests OAuth upgrade
+- **Benefit**: Simpler implementation, less maintenance burden
+
+#### ❌ Complex Method Detection - Over-Engineering
+- **Why removed**: Current implementation already handles detection well
+- **Alternative**: Clear status reporting shows current method
+- **Benefit**: Focus on user experience over technical complexity
+
+**Success Criteria**: 
+- Clear authentication status with helpful guidance
+- Seamless OAuth setup experience
+- Automatic token management with graceful fallback
+- User-friendly error messages with actionable next steps
+- Zero breaking changes to existing workflows
 
 ## Phase 5: Production Readiness (Week 5)
 
@@ -387,10 +505,10 @@ Each phase includes:
 - **API Changes**: Robust error handling and version compatibility
 
 ### User Experience Risks
-- **Migration Complexity**: Clear documentation and helper tools
-- **Authentication Confusion**: Clear status reporting and method detection
-- **Backward Compatibility**: Maintain existing workflows unchanged
+- **Authentication Confusion**: Clear status reporting and automatic priority system
+- **Backward Compatibility**: Maintain existing workflows unchanged  
 - **Agent Integration**: Thorough testing of automated workflows
+- **OAuth Setup Complexity**: Smart login flow with clear guidance
 
 ## Success Metrics
 
@@ -402,9 +520,9 @@ Each phase includes:
 
 ### User Experience Metrics
 - Successful OAuth setup rate > 95%
-- Migration completion rate > 90%
+- Authentication error resolution rate > 90% (users can fix issues based on error messages)
 - Support ticket reduction for authentication issues
-- Positive feedback on OAuth experience
+- Positive feedback on simplified OAuth experience
 
 ## Future Enhancements
 
