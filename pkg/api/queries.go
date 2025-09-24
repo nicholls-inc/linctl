@@ -368,6 +368,33 @@ type ProjectLink struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+// Input types for actor authorization
+
+// IssueCreateInput represents input for creating an issue with actor support
+type IssueCreateInput struct {
+	Title          string  `json:"title"`
+	Description    *string `json:"description,omitempty"`
+	TeamID         string  `json:"teamId"`
+	AssigneeID     *string `json:"assigneeId,omitempty"`
+	Priority       *int    `json:"priority,omitempty"`
+	StateID        *string `json:"stateId,omitempty"`
+	LabelIDs       []string `json:"labelIds,omitempty"`
+	ProjectID      *string `json:"projectId,omitempty"`
+	CycleID        *string `json:"cycleId,omitempty"`
+	Estimate       *float64 `json:"estimate,omitempty"`
+	DueDate        *string `json:"dueDate,omitempty"`
+	CreateAsUser   *string `json:"createAsUser,omitempty"`
+	DisplayIconURL *string `json:"displayIconUrl,omitempty"`
+}
+
+// CommentCreateInput represents input for creating a comment with actor support
+type CommentCreateInput struct {
+	IssueID        string  `json:"issueId"`
+	Body           string  `json:"body"`
+	CreateAsUser   *string `json:"createAsUser,omitempty"`
+	DisplayIconURL *string `json:"displayIconUrl,omitempty"`
+}
+
 // GetViewer returns the current authenticated user
 func (c *Client) GetViewer(ctx context.Context) (*User, error) {
 	query := `
@@ -1063,7 +1090,7 @@ func (c *Client) UpdateIssue(ctx context.Context, id string, input map[string]in
 }
 
 // CreateIssue creates a new issue
-func (c *Client) CreateIssue(ctx context.Context, input map[string]interface{}) (*Issue, error) {
+func (c *Client) CreateIssue(ctx context.Context, input IssueCreateInput) (*Issue, error) {
 	query := `
 		mutation CreateIssue($input: IssueCreateInput!) {
 			issueCreate(input: $input) {
@@ -1391,7 +1418,7 @@ func (c *Client) GetIssueComments(ctx context.Context, issueID string, first int
 }
 
 // CreateComment creates a new comment on an issue
-func (c *Client) CreateComment(ctx context.Context, issueID string, body string) (*Comment, error) {
+func (c *Client) CreateComment(ctx context.Context, input CommentCreateInput) (*Comment, error) {
 	query := `
 		mutation CreateComment($input: CommentCreateInput!) {
 			commentCreate(input: $input) {
@@ -1410,11 +1437,6 @@ func (c *Client) CreateComment(ctx context.Context, issueID string, body string)
 		}
 	`
 
-	input := map[string]interface{}{
-		"issueId": issueID,
-		"body":    body,
-	}
-
 	variables := map[string]interface{}{
 		"input": input,
 	}
@@ -1431,4 +1453,13 @@ func (c *Client) CreateComment(ctx context.Context, issueID string, body string)
 	}
 
 	return &response.CommentCreate.Comment, nil
+}
+
+// CreateCommentSimple creates a new comment on an issue (backward compatibility)
+func (c *Client) CreateCommentSimple(ctx context.Context, issueID string, body string) (*Comment, error) {
+	input := CommentCreateInput{
+		IssueID: issueID,
+		Body:    body,
+	}
+	return c.CreateComment(ctx, input)
 }

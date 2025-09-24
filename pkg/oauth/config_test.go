@@ -217,3 +217,146 @@ func TestDefaultScopes(t *testing.T) {
 		}
 	}
 }
+
+func TestActorConfig(t *testing.T) {
+	// Save original environment
+	originalActor := os.Getenv("LINEAR_DEFAULT_ACTOR")
+	originalAvatarURL := os.Getenv("LINEAR_DEFAULT_AVATAR_URL")
+	
+	// Clean up after test
+	defer func() {
+		os.Setenv("LINEAR_DEFAULT_ACTOR", originalActor)
+		os.Setenv("LINEAR_DEFAULT_AVATAR_URL", originalAvatarURL)
+	}()
+
+	tests := []struct {
+		name           string
+		envActor       string
+		envAvatarURL   string
+		expectedActor  string
+		expectedAvatar string
+		isConfigured   bool
+	}{
+		{
+			name:           "both configured",
+			envActor:       "AI Agent",
+			envAvatarURL:   "https://example.com/agent.png",
+			expectedActor:  "AI Agent",
+			expectedAvatar: "https://example.com/agent.png",
+			isConfigured:   true,
+		},
+		{
+			name:           "only actor configured",
+			envActor:       "AI Agent",
+			envAvatarURL:   "",
+			expectedActor:  "AI Agent",
+			expectedAvatar: "",
+			isConfigured:   true,
+		},
+		{
+			name:           "only avatar configured",
+			envActor:       "",
+			envAvatarURL:   "https://example.com/agent.png",
+			expectedActor:  "",
+			expectedAvatar: "https://example.com/agent.png",
+			isConfigured:   true,
+		},
+		{
+			name:           "nothing configured",
+			envActor:       "",
+			envAvatarURL:   "",
+			expectedActor:  "",
+			expectedAvatar: "",
+			isConfigured:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variables
+			os.Setenv("LINEAR_DEFAULT_ACTOR", tt.envActor)
+			os.Setenv("LINEAR_DEFAULT_AVATAR_URL", tt.envAvatarURL)
+
+			// Load actor config
+			config := LoadActorFromEnvironment()
+
+			// Test basic fields
+			if config.DefaultActor != tt.expectedActor {
+				t.Errorf("Expected actor '%s', got '%s'", tt.expectedActor, config.DefaultActor)
+			}
+
+			if config.DefaultAvatarURL != tt.expectedAvatar {
+				t.Errorf("Expected avatar URL '%s', got '%s'", tt.expectedAvatar, config.DefaultAvatarURL)
+			}
+
+			// Test IsConfigured
+			if config.IsConfigured() != tt.isConfigured {
+				t.Errorf("Expected IsConfigured() to return %v, got %v", tt.isConfigured, config.IsConfigured())
+			}
+
+			// Test GetActor with provided value
+			providedActor := "Provided Actor"
+			if result := config.GetActor(providedActor); result != providedActor {
+				t.Errorf("Expected GetActor with provided value to return '%s', got '%s'", providedActor, result)
+			}
+
+			// Test GetActor with empty provided value
+			if result := config.GetActor(""); result != tt.expectedActor {
+				t.Errorf("Expected GetActor with empty provided value to return '%s', got '%s'", tt.expectedActor, result)
+			}
+
+			// Test GetAvatarURL with provided value
+			providedURL := "https://provided.com/avatar.png"
+			if result := config.GetAvatarURL(providedURL); result != providedURL {
+				t.Errorf("Expected GetAvatarURL with provided value to return '%s', got '%s'", providedURL, result)
+			}
+
+			// Test GetAvatarURL with empty provided value
+			if result := config.GetAvatarURL(""); result != tt.expectedAvatar {
+				t.Errorf("Expected GetAvatarURL with empty provided value to return '%s', got '%s'", tt.expectedAvatar, result)
+			}
+		})
+	}
+}
+
+func TestGetEnvironmentStatusWithActor(t *testing.T) {
+	// Save original environment
+	originalClientID := os.Getenv("LINEAR_CLIENT_ID")
+	originalClientSecret := os.Getenv("LINEAR_CLIENT_SECRET")
+	originalActor := os.Getenv("LINEAR_DEFAULT_ACTOR")
+	originalAvatarURL := os.Getenv("LINEAR_DEFAULT_AVATAR_URL")
+	
+	// Clean up after test
+	defer func() {
+		os.Setenv("LINEAR_CLIENT_ID", originalClientID)
+		os.Setenv("LINEAR_CLIENT_SECRET", originalClientSecret)
+		os.Setenv("LINEAR_DEFAULT_ACTOR", originalActor)
+		os.Setenv("LINEAR_DEFAULT_AVATAR_URL", originalAvatarURL)
+	}()
+
+	// Set test environment
+	os.Setenv("LINEAR_CLIENT_ID", "test-client-id")
+	os.Setenv("LINEAR_CLIENT_SECRET", "test-client-secret")
+	os.Setenv("LINEAR_DEFAULT_ACTOR", "Test Agent")
+	os.Setenv("LINEAR_DEFAULT_AVATAR_URL", "https://test.com/avatar.png")
+
+	status := GetEnvironmentStatus()
+
+	// Check that actor fields are included
+	if _, ok := status["LINEAR_DEFAULT_ACTOR"]; !ok {
+		t.Error("Expected LINEAR_DEFAULT_ACTOR in environment status")
+	}
+
+	if _, ok := status["LINEAR_DEFAULT_AVATAR_URL"]; !ok {
+		t.Error("Expected LINEAR_DEFAULT_AVATAR_URL in environment status")
+	}
+
+	// Check values
+	if status["LINEAR_DEFAULT_ACTOR"].(string) != "Test Agent" {
+		t.Errorf("Expected LINEAR_DEFAULT_ACTOR to be 'Test Agent', got '%s'", status["LINEAR_DEFAULT_ACTOR"])
+	}
+
+	if status["LINEAR_DEFAULT_AVATAR_URL"].(string) != "https://test.com/avatar.png" {
+		t.Errorf("Expected LINEAR_DEFAULT_AVATAR_URL to be 'https://test.com/avatar.png', got '%s'", status["LINEAR_DEFAULT_AVATAR_URL"])
+	}
+}

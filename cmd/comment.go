@@ -10,6 +10,7 @@ import (
 	"github.com/dorkitude/linctl/pkg/api"
 	"github.com/dorkitude/linctl/pkg/auth"
 	"github.com/dorkitude/linctl/pkg/output"
+	"github.com/dorkitude/linctl/pkg/utils"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -23,7 +24,8 @@ var commentCmd = &cobra.Command{
 
 Examples:
   linctl comment list LIN-123        # List comments for an issue
-  linctl comment create LIN-123 --body "This is fixed"  # Add a comment`,
+  linctl comment create LIN-123 --body "This is fixed"  # Add a comment
+  linctl comment create LIN-123 --body "Working on this" --actor "AI Agent"  # Add comment with actor attribution`,
 }
 
 var commentListCmd = &cobra.Command{
@@ -83,7 +85,11 @@ var commentListCmd = &cobra.Command{
 				if i > 0 {
 					fmt.Println("---")
 				}
-				fmt.Printf("Author: %s\n", comment.User.Name)
+				authorName := "Unknown"
+				if comment.User != nil {
+					authorName = comment.User.Name
+				}
+				fmt.Printf("Author: %s\n", authorName)
 				fmt.Printf("Date: %s\n", comment.CreatedAt.Format("2006-01-02 15:04:05"))
 				fmt.Printf("Comment:\n%s\n", comment.Body)
 			}
@@ -108,8 +114,12 @@ var commentListCmd = &cobra.Command{
 
 				// Header with author and time
 				timeAgo := formatTimeAgo(comment.CreatedAt)
+				authorName := "Unknown"
+				if comment.User != nil {
+					authorName = comment.User.Name
+				}
 				fmt.Printf("%s %s %s\n",
-					color.New(color.FgCyan, color.Bold).Sprint(comment.User.Name),
+					color.New(color.FgCyan, color.Bold).Sprint(authorName),
 					color.New(color.FgWhite, color.Faint).Sprint("•"),
 					color.New(color.FgWhite, color.Faint).Sprint(timeAgo))
 
@@ -141,15 +151,29 @@ var commentCreateCmd = &cobra.Command{
 		// Create API client
 		client := api.NewClient(authHeader)
 
-		// Get comment body
+		// Get comment body and actor parameters
 		body, _ := cmd.Flags().GetString("body")
+		actor, _ := cmd.Flags().GetString("actor")
+		avatarURL, _ := cmd.Flags().GetString("avatar-url")
+		
 		if body == "" {
 			output.Error("Comment body is required (--body)", plaintext, jsonOut)
 			os.Exit(1)
 		}
 
+		// Resolve actor parameters
+		actorParams := utils.ResolveActorParams(actor, avatarURL)
+
+		// Build input
+		input := api.CommentCreateInput{
+			IssueID:        issueID,
+			Body:           body,
+			CreateAsUser:   actorParams.ToCreateAsUser(),
+			DisplayIconURL: actorParams.ToDisplayIconURL(),
+		}
+
 		// Create comment
-		comment, err := client.CreateComment(context.Background(), issueID, body)
+		comment, err := client.CreateComment(context.Background(), input)
 		if err != nil {
 			output.Error(fmt.Sprintf("Failed to create comment: %v", err), plaintext, jsonOut)
 			os.Exit(1)
@@ -160,7 +184,11 @@ var commentCreateCmd = &cobra.Command{
 			output.JSON(comment)
 		} else if plaintext {
 			fmt.Printf("Created comment on %s\n", issueID)
-			fmt.Printf("Author: %s\n", comment.User.Name)
+			authorName := "Unknown"
+			if comment.User != nil {
+				authorName = comment.User.Name
+			}
+			fmt.Printf("Author: %s\n", authorName)
 			fmt.Printf("Date: %s\n", comment.CreatedAt.Format("2006-01-02 15:04:05"))
 		} else {
 			fmt.Printf("%s Added comment to %s\n",
@@ -221,5 +249,7 @@ func init() {
 
 	// Create command flags
 	commentCreateCmd.Flags().StringP("body", "b", "", "Comment body (required)")
+	commentCreateCmd.Flags().String("actor", "", "Actor name for attribution (uses LINEAR_DEFAULT_ACTOR if not specified)")
+	commentCreateCmd.Flags().String("avatar-url", "", "Avatar URL for actor (uses LINEAR_DEFAULT_AVATAR_URL if not specified)")
 	_ = commentCreateCmd.MarkFlagRequired("body")
 }
