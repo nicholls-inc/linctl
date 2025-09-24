@@ -27,7 +27,8 @@ type AuthConfig struct {
 }
 
 // getConfigPath returns the path to the auth config file
-func getConfigPath() (string, error) {
+// This variable allows for mocking in tests
+var getConfigPath = func() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", err

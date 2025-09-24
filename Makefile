@@ -22,15 +22,43 @@ clean:
 	rm -f $(BINARY_NAME)
 	go clean
 
-# Run smoke tests
-test:
+# Run unit tests only
+test-unit:
+	@echo "🧪 Running unit tests..."
+	@go test ./...
+
+# Run unit tests with verbose output
+test-unit-verbose:
+	@echo "🧪 Running unit tests (verbose)..."
+	@go test -v ./...
+
+# Run OAuth integration tests
+test-oauth:
+	@echo "🧪 Running OAuth integration tests..."
+	@./test_oauth_integration.sh
+
+# Run smoke tests (requires authentication)
+test-smoke:
 	@echo "🧪 Running smoke tests..."
 	@./smoke_test.sh
 
 # Run smoke tests with verbose output
-test-verbose:
+test-smoke-verbose:
 	@echo "🧪 Running smoke tests (verbose)..."
 	@bash -x ./smoke_test.sh
+
+# Run all tests (unit + OAuth integration)
+test:
+	@echo "🧪 Running all tests..."
+	@$(MAKE) test-unit
+	@$(MAKE) test-oauth
+
+# Run all tests including smoke tests (requires authentication)
+test-all:
+	@echo "🧪 Running all tests including smoke tests..."
+	@$(MAKE) test-unit
+	@$(MAKE) test-oauth
+	@$(MAKE) test-smoke
 
 # Install dependencies
 deps:
@@ -85,8 +113,11 @@ help:
 	@echo "📖 Available targets:"
 	@echo "  build            - Build the binary"
 	@echo "  clean            - Clean build artifacts"
-	@echo "  test             - Run smoke tests"
-	@echo "  test-verbose     - Run smoke tests with verbose output"
+	@echo "  test             - Run unit tests and OAuth integration tests"
+	@echo "  test-unit        - Run unit tests only"
+	@echo "  test-oauth       - Run OAuth integration tests"
+	@echo "  test-smoke       - Run smoke tests (requires authentication)"
+	@echo "  test-all         - Run all tests including smoke tests"
 	@echo "  deps             - Install dependencies"
 	@echo "  fmt              - Format code"
 	@echo "  lint             - Lint code"
