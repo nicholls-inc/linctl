@@ -350,3 +350,509 @@ func TestOAuthClient_ContextCancellation(t *testing.T) {
 		t.Errorf("Expected context canceled error, got %s", err.Error())
 	}
 }
+
+// Tests for enhanced OAuth client functionality
+
+func TestNewOAuthClientFromConfig(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      *Config
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid config",
+			config: &Config{
+				ClientID:     "test-client-id",
+				ClientSecret: "test-client-secret",
+				BaseURL:      "https://api.linear.app",
+				Scopes:       []string{"read", "write"},
+			},
+			expectError: false,
+		},
+		{
+			name: "invalid config - missing client ID",
+			config: &Config{
+				ClientSecret: "test-client-secret",
+				BaseURL:      "https://api.linear.app",
+				Scopes:       []string{"read", "write"},
+			},
+			expectError: true,
+			errorMsg:    "invalid OAuth config",
+		},
+		{
+			name: "invalid config - missing client secret",
+			config: &Config{
+				ClientID: "test-client-id",
+				BaseURL:  "https://api.linear.app",
+				Scopes:   []string{"read", "write"},
+			},
+			expectError: true,
+			errorMsg:    "invalid OAuth config",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, err := NewOAuthClientFromConfig(tt.config)
+			
+			if tt.expectError {
+				if err == nil {
+					t.Fatal("Expected error but got none")
+				}
+				if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error to contain '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+				return
+			}
+			
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			
+			if client == nil {
+				t.Fatal("Expected client to be created")
+			}
+			
+			if client.clientID != tt.config.ClientID {
+				t.Errorf("Expected client ID '%s', got '%s'", tt.config.ClientID, client.clientID)
+			}
+			
+			if client.clientSecret != tt.config.ClientSecret {
+				t.Errorf("Expected client secret '%s', got '%s'", tt.config.ClientSecret, client.clientSecret)
+			}
+			
+			if client.baseURL != tt.config.BaseURL {
+				t.Errorf("Expected base URL '%s', got '%s'", tt.config.BaseURL, client.baseURL)
+			}
+			
+			if client.tokenStore == nil {
+				t.Error("Expected token store to be initialized")
+			}
+			
+			if client.config == nil {
+				t.Error("Expected config to be stored")
+			}
+		})
+	}
+}
+
+func TestOAuthClient_GetValidToken(t *testing.T) {
+	// Create a temporary directory for token storage
+	tempDir := t.TempDir()
+	
+	tests := []struct {
+		name           string
+		setupToken     *TokenResponse
+		tokenExpired   bool
+		serverResponse *TokenResponse
+		expectError    bool
+		errorMsg       string
+	}{
+		{
+			name: "valid stored token",
+			setupToken: &TokenResponse{
+				AccessToken: "stored-token",
+				TokenType:   "Bearer",
+				ExpiresIn:   3600,
+				Scope:       "read write",
+			},
+			tokenExpired: false,
+			expectError:  false,
+		},
+		{
+			name: "expired token - refresh successful",
+			setupToken: &TokenResponse{
+				AccessToken: "expired-token",
+				TokenType:   "Bearer",
+				ExpiresIn:   1, // Will be expired due to buffer
+				Scope:       "read write",
+			},
+			tokenExpired: true,
+			serverResponse: &TokenResponse{
+				AccessToken: "new-token",
+				TokenType:   "Bearer",
+				ExpiresIn:   3600,
+				Scope:       "read write",
+			},
+			expectError: false,
+		},
+		{
+			name:        "no stored token - get new token",
+			setupToken:  nil,
+			tokenExpired: false,
+			serverResponse: &TokenResponse{
+				AccessToken: "fresh-token",
+				TokenType:   "Bearer",
+				ExpiresIn:   3600,
+				Scope:       "read write",
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock server
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if tt.serverResponse != nil {
+					w.Header().Set("Content-Type", "application/json")
+					json.NewEncoder(w).Encode(tt.serverResponse)
+				} else {
+					w.WriteHeader(http.StatusInternalServerError)
+				}
+			}))
+			defer server.Close()
+
+			// Create client with custom token store path
+			testTokenPath := tempDir + "/test-token-" + strings.ReplaceAll(tt.name, " ", "-") + ".json"
+			client := NewOAuthClient("test-client-id", "test-client-secret", server.URL)
+			client.tokenStore = NewTokenStoreWithPath(testTokenPath)
+
+			// Setup stored token if provided
+			if tt.setupToken != nil {
+				// Adjust expiry time based on test case
+				if tt.tokenExpired {
+					// Make token expire soon (within buffer)
+					time.Sleep(10 * time.Millisecond) // Ensure some time passes
+				}
+				err := client.tokenStore.SaveToken(tt.setupToken)
+				if err != nil {
+					t.Fatalf("Failed to setup test token: %v", err)
+				}
+				
+				if tt.tokenExpired {
+					// Wait a bit more to ensure expiry
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
+
+			// Test GetValidToken
+			token, err := client.GetValidToken(context.Background(), []string{"read", "write"})
+
+			if tt.expectError {
+				if err == nil {
+					t.Fatal("Expected error but got none")
+				}
+				if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error to contain '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if token == nil {
+				t.Fatal("Expected token to be returned")
+			}
+
+			// Verify token content
+			if tt.setupToken != nil && !tt.tokenExpired {
+				// Should return stored token
+				if token.AccessToken != tt.setupToken.AccessToken {
+					t.Errorf("Expected stored token '%s', got '%s'", tt.setupToken.AccessToken, token.AccessToken)
+				}
+			} else if tt.serverResponse != nil {
+				// Should return new token from server
+				if token.AccessToken != tt.serverResponse.AccessToken {
+					t.Errorf("Expected new token '%s', got '%s'", tt.serverResponse.AccessToken, token.AccessToken)
+				}
+			}
+		})
+	}
+}
+
+func TestOAuthClient_RefreshToken(t *testing.T) {
+	tempDir := t.TempDir()
+	
+	tests := []struct {
+		name           string
+		serverResponse *TokenResponse
+		expectError    bool
+		errorMsg       string
+	}{
+		{
+			name: "successful refresh",
+			serverResponse: &TokenResponse{
+				AccessToken: "refreshed-token",
+				TokenType:   "Bearer",
+				ExpiresIn:   3600,
+				Scope:       "read write",
+			},
+			expectError: false,
+		},
+		{
+			name:        "server error",
+			serverResponse: nil,
+			expectError: true,
+			errorMsg:    "failed to refresh token",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock server
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if tt.serverResponse != nil {
+					w.Header().Set("Content-Type", "application/json")
+					json.NewEncoder(w).Encode(tt.serverResponse)
+				} else {
+					w.WriteHeader(http.StatusInternalServerError)
+				}
+			}))
+			defer server.Close()
+
+			// Create client with custom token store path
+			testTokenPath := tempDir + "/test-token-" + strings.ReplaceAll(tt.name, " ", "-") + ".json"
+			client := NewOAuthClient("test-client-id", "test-client-secret", server.URL)
+			client.tokenStore = NewTokenStoreWithPath(testTokenPath)
+
+			// Test RefreshToken
+			token, err := client.RefreshToken(context.Background(), []string{"read", "write"})
+
+			if tt.expectError {
+				if err == nil {
+					t.Fatal("Expected error but got none")
+				}
+				if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error to contain '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if token == nil {
+				t.Fatal("Expected token to be returned")
+			}
+
+			if token.AccessToken != tt.serverResponse.AccessToken {
+				t.Errorf("Expected token '%s', got '%s'", tt.serverResponse.AccessToken, token.AccessToken)
+			}
+
+			// Verify token was saved
+			storedToken, err := client.tokenStore.LoadToken()
+			if err != nil {
+				t.Fatalf("Failed to load stored token: %v", err)
+			}
+
+			if storedToken.AccessToken != tt.serverResponse.AccessToken {
+				t.Errorf("Expected stored token '%s', got '%s'", tt.serverResponse.AccessToken, storedToken.AccessToken)
+			}
+		})
+	}
+}
+
+func TestOAuthClient_GetStoredTokenInfo(t *testing.T) {
+	tempDir := t.TempDir()
+	
+	tests := []struct {
+		name        string
+		setupToken  *TokenResponse
+		expectValid bool
+	}{
+		{
+			name: "valid stored token",
+			setupToken: &TokenResponse{
+				AccessToken: "valid-token",
+				TokenType:   "Bearer",
+				ExpiresIn:   3600,
+				Scope:       "read write",
+			},
+			expectValid: true,
+		},
+		{
+			name:        "no stored token",
+			setupToken:  nil,
+			expectValid: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := NewOAuthClient("test-client-id", "test-client-secret", "https://api.linear.app")
+			client.tokenStore = NewTokenStoreWithPath(tempDir + "/test-token-" + tt.name + ".json")
+
+			// Setup stored token if provided
+			if tt.setupToken != nil {
+				err := client.tokenStore.SaveToken(tt.setupToken)
+				if err != nil {
+					t.Fatalf("Failed to setup test token: %v", err)
+				}
+			}
+
+			// Test GetStoredTokenInfo
+			info := client.GetStoredTokenInfo()
+
+			if info == nil {
+				t.Fatal("Expected token info to be returned")
+			}
+
+			if tt.expectValid {
+				if valid, ok := info["valid"].(bool); !ok || !valid {
+					t.Error("Expected token to be reported as valid")
+				}
+				
+				if _, ok := info["expires_at"]; !ok {
+					t.Error("Expected expires_at field in token info")
+				}
+				
+				if scope, ok := info["scope"].(string); !ok || scope != tt.setupToken.Scope {
+					t.Errorf("Expected scope '%s', got '%v'", tt.setupToken.Scope, scope)
+				}
+			} else {
+				if _, ok := info["error"]; !ok {
+					t.Error("Expected error field when no token stored")
+				}
+			}
+		})
+	}
+}
+
+func TestOAuthClient_ClearStoredToken(t *testing.T) {
+	tempDir := t.TempDir()
+	
+	client := NewOAuthClient("test-client-id", "test-client-secret", "https://api.linear.app")
+	client.tokenStore = NewTokenStoreWithPath(tempDir + "/test-token.json")
+
+	// Setup a token first
+	token := &TokenResponse{
+		AccessToken: "test-token",
+		TokenType:   "Bearer",
+		ExpiresIn:   3600,
+		Scope:       "read write",
+	}
+	
+	err := client.tokenStore.SaveToken(token)
+	if err != nil {
+		t.Fatalf("Failed to setup test token: %v", err)
+	}
+
+	// Verify token exists
+	if !client.HasValidStoredToken() {
+		t.Error("Expected token to exist before clearing")
+	}
+
+	// Clear token
+	err = client.ClearStoredToken()
+	if err != nil {
+		t.Fatalf("Failed to clear token: %v", err)
+	}
+
+	// Verify token is cleared
+	if client.HasValidStoredToken() {
+		t.Error("Expected token to be cleared")
+	}
+}
+
+func TestOAuthClient_HasValidStoredToken(t *testing.T) {
+	tempDir := t.TempDir()
+	
+	tests := []struct {
+		name        string
+		setupToken  *TokenResponse
+		expectValid bool
+	}{
+		{
+			name: "valid stored token",
+			setupToken: &TokenResponse{
+				AccessToken: "valid-token",
+				TokenType:   "Bearer",
+				ExpiresIn:   3600,
+				Scope:       "read write",
+			},
+			expectValid: true,
+		},
+		{
+			name: "expired stored token",
+			setupToken: &TokenResponse{
+				AccessToken: "expired-token",
+				TokenType:   "Bearer",
+				ExpiresIn:   1, // Will be expired due to buffer
+				Scope:       "read write",
+			},
+			expectValid: false,
+		},
+		{
+			name:        "no stored token",
+			setupToken:  nil,
+			expectValid: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := NewOAuthClient("test-client-id", "test-client-secret", "https://api.linear.app")
+			client.tokenStore = NewTokenStoreWithPath(tempDir + "/test-token-" + tt.name + ".json")
+
+			// Setup stored token if provided
+			if tt.setupToken != nil {
+				err := client.tokenStore.SaveToken(tt.setupToken)
+				if err != nil {
+					t.Fatalf("Failed to setup test token: %v", err)
+				}
+				
+				if tt.setupToken.ExpiresIn == 1 {
+					// Wait for token to expire
+					time.Sleep(10 * time.Millisecond)
+				}
+			}
+
+			// Test HasValidStoredToken
+			hasValid := client.HasValidStoredToken()
+
+			if hasValid != tt.expectValid {
+				t.Errorf("Expected HasValidStoredToken to return %v, got %v", tt.expectValid, hasValid)
+			}
+		})
+	}
+}
+
+func TestOAuthClient_NoTokenStore(t *testing.T) {
+	// Test client behavior when token store is nil
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := TokenResponse{
+			AccessToken: "fallback-token",
+			TokenType:   "Bearer",
+			ExpiresIn:   3600,
+			Scope:       "read write",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	client := NewOAuthClient("test-client-id", "test-client-secret", server.URL)
+	client.tokenStore = nil // Simulate no token store
+
+	// GetValidToken should fallback to direct token request
+	token, err := client.GetValidToken(context.Background(), []string{"read", "write"})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if token.AccessToken != "fallback-token" {
+		t.Errorf("Expected fallback token, got '%s'", token.AccessToken)
+	}
+
+	// HasValidStoredToken should return false
+	if client.HasValidStoredToken() {
+		t.Error("Expected HasValidStoredToken to return false when no token store")
+	}
+
+	// ClearStoredToken should return error
+	err = client.ClearStoredToken()
+	if err == nil {
+		t.Error("Expected error when clearing token with no token store")
+	}
+
+	// GetStoredTokenInfo should return error info
+	info := client.GetStoredTokenInfo()
+	if errorMsg, ok := info["error"].(string); !ok || errorMsg == "" {
+		t.Error("Expected error message when no token store available")
+	}
+}
