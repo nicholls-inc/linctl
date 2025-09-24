@@ -312,22 +312,39 @@ type AuthStatus struct {
 	Environment   map[string]interface{} `json:"environment,omitempty"`
 }
 
-// GetAuthMethod returns the current authentication method
-func GetAuthMethod() (string, error) {
+// determineAuthMethod determines the current authentication method using the same priority as GetAuthHeader
+func determineAuthMethod() string {
+	// First check environment OAuth (highest priority)
+	if token, err := getValidOAuthToken(); err == nil && token != "" {
+		return "oauth"
+	}
+	
+	// Fall back to stored credentials
 	config, err := loadAuth()
 	if err != nil {
-		return "", err
+		return "none"
 	}
 
+	// Check stored OAuth token
 	if config.OAuthToken != "" {
-		return "oauth", nil
+		return "oauth"
 	}
 
+	// Fall back to API key
 	if config.APIKey != "" {
-		return "api_key", nil
+		return "api_key"
 	}
 
-	return "", fmt.Errorf("no valid authentication found")
+	return "none"
+}
+
+// GetAuthMethod returns the current authentication method (backward compatibility)
+func GetAuthMethod() (string, error) {
+	method := determineAuthMethod()
+	if method == "none" {
+		return "", fmt.Errorf("no valid authentication found")
+	}
+	return method, nil
 }
 
 // GetAuthStatus returns comprehensive authentication status with guidance
@@ -345,11 +362,8 @@ func GetAuthStatus() (*AuthStatus, error) {
 		status.User = user
 	}
 
-	// Determine authentication method and add relevant information
-	authMethod, methodErr := GetAuthMethod()
-	if methodErr == nil {
-		status.Method = authMethod
-	}
+	// Determine authentication method by checking the same priority as GetAuthHeader
+	status.Method = determineAuthMethod()
 
 	// Get OAuth information if available
 	oauthInfo, oauthErr := GetOAuthTokenInfo()
@@ -368,6 +382,11 @@ func GetAuthStatus() (*AuthStatus, error) {
 			} else {
 				status.Suggestions = append(status.Suggestions, "OAuth token is expired or invalid. Refresh with: linctl auth refresh")
 			}
+		}
+	} else if oauthErr == nil {
+		// OAuth not configured but no error - add environment info if available
+		if env, ok := oauthInfo["environment"].(map[string]interface{}); ok {
+			status.Environment = env
 		}
 	}
 
