@@ -27,7 +27,8 @@ Examples:
   linctl issue list --include-completed  # Show all issues including completed
   linctl issue list --newer-than 3_weeks_ago  # Show issues from last 3 weeks
   linctl issue get LIN-123
-  linctl issue create --title "Bug fix" --team ENG`,
+  linctl issue create --title "Bug fix" --team ENG
+  linctl issue create --title "Bug fix" --team ENG --actor "AI Agent" --avatar-url "https://example.com/agent.png"`,
 }
 
 var issueListCmd = &cobra.Command{
@@ -789,6 +790,8 @@ var issueCreateCmd = &cobra.Command{
 		teamKey, _ := cmd.Flags().GetString("team")
 		priority, _ := cmd.Flags().GetInt("priority")
 		assignToMe, _ := cmd.Flags().GetBool("assign-me")
+		actor, _ := cmd.Flags().GetString("actor")
+		avatarURL, _ := cmd.Flags().GetString("avatar-url")
 
 		if title == "" {
 			output.Error("Title is required (--title)", plaintext, jsonOut)
@@ -807,18 +810,21 @@ var issueCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		// Resolve actor parameters
+		actorParams := utils.ResolveActorParams(actor, avatarURL)
+
 		// Build input
-		input := map[string]interface{}{
-			"title":  title,
-			"teamId": team.ID,
+		input := api.IssueCreateInput{
+			Title:  title,
+			TeamID: team.ID,
 		}
 
 		if description != "" {
-			input["description"] = description
+			input.Description = &description
 		}
 
 		if priority >= 0 && priority <= 4 {
-			input["priority"] = priority
+			input.Priority = &priority
 		}
 
 		if assignToMe {
@@ -827,8 +833,12 @@ var issueCreateCmd = &cobra.Command{
 				output.Error(fmt.Sprintf("Failed to get current user: %v", err), plaintext, jsonOut)
 				os.Exit(1)
 			}
-			input["assigneeId"] = viewer.ID
+			input.AssigneeID = &viewer.ID
 		}
+
+		// Add actor parameters if available
+		input.CreateAsUser = actorParams.ToCreateAsUser()
+		input.DisplayIconURL = actorParams.ToDisplayIconURL()
 
 		// Create issue
 		issue, err := client.CreateIssue(context.Background(), input)
@@ -1036,6 +1046,8 @@ func init() {
 	issueCreateCmd.Flags().StringP("team", "t", "", "Team key (required)")
 	issueCreateCmd.Flags().Int("priority", 3, "Priority (0=None, 1=Urgent, 2=High, 3=Normal, 4=Low)")
 	issueCreateCmd.Flags().BoolP("assign-me", "m", false, "Assign to yourself")
+	issueCreateCmd.Flags().String("actor", "", "Actor name for attribution (uses LINEAR_DEFAULT_ACTOR if not specified)")
+	issueCreateCmd.Flags().String("avatar-url", "", "Avatar URL for actor (uses LINEAR_DEFAULT_AVATAR_URL if not specified)")
 	_ = issueCreateCmd.MarkFlagRequired("title")
 	_ = issueCreateCmd.MarkFlagRequired("team")
 

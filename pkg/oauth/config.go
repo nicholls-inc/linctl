@@ -14,6 +14,12 @@ type Config struct {
 	Scopes       []string `json:"scopes"`
 }
 
+// ActorConfig represents default actor configuration
+type ActorConfig struct {
+	DefaultActor     string `json:"default_actor"`
+	DefaultAvatarURL string `json:"default_avatar_url"`
+}
+
 // DefaultScopes returns the default OAuth scopes for Linear
 func DefaultScopes() []string {
 	return []string{"read", "write", "issues:create", "comments:create"}
@@ -52,6 +58,41 @@ func LoadFromEnvironment() (*Config, error) {
 	}
 
 	return config, nil
+}
+
+// LoadActorFromEnvironment loads actor configuration from environment variables
+func LoadActorFromEnvironment() *ActorConfig {
+	return &ActorConfig{
+		DefaultActor:     os.Getenv("LINEAR_DEFAULT_ACTOR"),
+		DefaultAvatarURL: os.Getenv("LINEAR_DEFAULT_AVATAR_URL"),
+	}
+}
+
+// IsConfigured returns true if actor configuration is available
+func (ac *ActorConfig) IsConfigured() bool {
+	return ac != nil && (ac.DefaultActor != "" || ac.DefaultAvatarURL != "")
+}
+
+// GetActor returns the actor name, using the provided value or falling back to default
+func (ac *ActorConfig) GetActor(provided string) string {
+	if provided != "" {
+		return provided
+	}
+	if ac != nil {
+		return ac.DefaultActor
+	}
+	return ""
+}
+
+// GetAvatarURL returns the avatar URL, using the provided value or falling back to default
+func (ac *ActorConfig) GetAvatarURL(provided string) string {
+	if provided != "" {
+		return provided
+	}
+	if ac != nil {
+		return ac.DefaultAvatarURL
+	}
+	return ""
 }
 
 // Validate checks if the configuration is valid
@@ -114,10 +155,12 @@ func (c *Config) HasScope(scope string) bool {
 // GetEnvironmentStatus returns information about environment variable configuration
 func GetEnvironmentStatus() map[string]interface{} {
 	status := map[string]interface{}{
-		"LINEAR_CLIENT_ID":     os.Getenv("LINEAR_CLIENT_ID") != "",
-		"LINEAR_CLIENT_SECRET": os.Getenv("LINEAR_CLIENT_SECRET") != "",
-		"LINEAR_BASE_URL":      os.Getenv("LINEAR_BASE_URL"),
-		"LINEAR_SCOPES":        os.Getenv("LINEAR_SCOPES"),
+		"LINEAR_CLIENT_ID":         os.Getenv("LINEAR_CLIENT_ID") != "",
+		"LINEAR_CLIENT_SECRET":     os.Getenv("LINEAR_CLIENT_SECRET") != "",
+		"LINEAR_BASE_URL":          os.Getenv("LINEAR_BASE_URL"),
+		"LINEAR_SCOPES":            os.Getenv("LINEAR_SCOPES"),
+		"LINEAR_DEFAULT_ACTOR":     os.Getenv("LINEAR_DEFAULT_ACTOR"),
+		"LINEAR_DEFAULT_AVATAR_URL": os.Getenv("LINEAR_DEFAULT_AVATAR_URL"),
 	}
 
 	// Don't expose actual values for security
@@ -139,6 +182,14 @@ func GetEnvironmentStatus() map[string]interface{} {
 
 	if status["LINEAR_SCOPES"].(string) == "" {
 		status["LINEAR_SCOPES"] = "not set (using defaults)"
+	}
+
+	if status["LINEAR_DEFAULT_ACTOR"].(string) == "" {
+		status["LINEAR_DEFAULT_ACTOR"] = "not set"
+	}
+
+	if status["LINEAR_DEFAULT_AVATAR_URL"].(string) == "" {
+		status["LINEAR_DEFAULT_AVATAR_URL"] = "not set"
 	}
 
 	return status
