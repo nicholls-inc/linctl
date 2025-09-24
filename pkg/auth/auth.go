@@ -76,12 +76,18 @@ func loadAuth() (*AuthConfig, error) {
 
 // GetAuthHeader returns the authorization header value
 func GetAuthHeader() (string, error) {
+	// First try OAuth with automatic token management
+	if token, err := getValidOAuthToken(); err == nil && token != "" {
+		return "Bearer " + token, nil
+	}
+	
+	// Fall back to stored credentials
 	config, err := loadAuth()
 	if err != nil {
 		return "", err
 	}
 
-	// Check OAuth token first
+	// Check OAuth token from config
 	if config.OAuthToken != "" {
 		return "Bearer " + config.OAuthToken, nil
 	}
@@ -92,6 +98,34 @@ func GetAuthHeader() (string, error) {
 	}
 
 	return "", fmt.Errorf("no valid authentication found")
+}
+
+// getValidOAuthToken attempts to get a valid OAuth token using environment variables
+func getValidOAuthToken() (string, error) {
+	// Try to load OAuth config from environment
+	oauthConfig, err := oauth.LoadFromEnvironment()
+	if err != nil {
+		return "", err
+	}
+	
+	// Check if OAuth is configured
+	if !oauthConfig.IsComplete() {
+		return "", fmt.Errorf("OAuth not configured via environment variables")
+	}
+	
+	// Create OAuth client
+	oauthClient, err := oauth.NewOAuthClientFromConfig(oauthConfig)
+	if err != nil {
+		return "", fmt.Errorf("failed to create OAuth client: %w", err)
+	}
+	
+	// Get valid token (will use cached token if available and valid)
+	tokenResp, err := oauthClient.GetValidToken(context.Background(), oauthConfig.Scopes)
+	if err != nil {
+		return "", fmt.Errorf("failed to get valid OAuth token: %w", err)
+	}
+	
+	return tokenResp.AccessToken, nil
 }
 
 // Login handles the authentication flow
@@ -150,17 +184,14 @@ func loginWithAPIKey(plaintext, jsonOut bool) error {
 
 // LoginWithOAuth handles OAuth authentication flow
 func LoginWithOAuth(plaintext, jsonOut bool) error {
-	// Check for environment variables first
-	clientID := os.Getenv("LINEAR_CLIENT_ID")
-	clientSecret := os.Getenv("LINEAR_CLIENT_SECRET")
-	baseURL := os.Getenv("LINEAR_BASE_URL")
-	
-	if baseURL == "" {
-		baseURL = "https://api.linear.app"
+	// Try to load OAuth config from environment first
+	oauthConfig, err := oauth.LoadFromEnvironment()
+	if err != nil {
+		return fmt.Errorf("failed to load OAuth config: %w", err)
 	}
-
+	
 	// If environment variables are not set, prompt for them
-	if clientID == "" || clientSecret == "" {
+	if !oauthConfig.IsComplete() {
 		if !plaintext && !jsonOut {
 			fmt.Println("\n" + color.New(color.FgYellow).Sprint("🔐 OAuth Authentication"))
 			fmt.Println("You need Linear OAuth application credentials.")
@@ -171,7 +202,7 @@ func LoginWithOAuth(plaintext, jsonOut bool) error {
 			fmt.Printf("Your credentials will be stored in: %s\n", color.New(color.FgCyan).Sprint(configPath))
 		}
 
-		if clientID == "" {
+		if oauthConfig.ClientID == "" {
 			if !plaintext && !jsonOut {
 				fmt.Print("\nEnter your OAuth Client ID: ")
 			}
@@ -180,10 +211,10 @@ func LoginWithOAuth(plaintext, jsonOut bool) error {
 			if err != nil {
 				return err
 			}
-			clientID = strings.TrimSpace(input)
+			oauthConfig.ClientID = strings.TrimSpace(input)
 		}
 
-		if clientSecret == "" {
+		if oauthConfig.ClientSecret == "" {
 			if !plaintext && !jsonOut {
 				fmt.Print("Enter your OAuth Client Secret: ")
 			}
@@ -192,19 +223,21 @@ func LoginWithOAuth(plaintext, jsonOut bool) error {
 			if err != nil {
 				return err
 			}
-			clientSecret = strings.TrimSpace(input)
+			oauthConfig.ClientSecret = strings.TrimSpace(input)
 		}
 	}
 
-	if clientID == "" || clientSecret == "" {
+	if !oauthConfig.IsComplete() {
 		return fmt.Errorf("OAuth client ID and secret are required")
 	}
 
 	// Create OAuth client and get access token
-	oauthClient := oauth.NewOAuthClient(clientID, clientSecret, baseURL)
-	scopes := []string{"read", "write", "issues:create", "comments:create"}
+	oauthClient, err := oauth.NewOAuthClientFromConfig(oauthConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create OAuth client: %w", err)
+	}
 	
-	tokenResp, err := oauthClient.GetAccessToken(context.Background(), scopes)
+	tokenResp, err := oauthClient.GetValidToken(context.Background(), oauthConfig.Scopes)
 	if err != nil {
 		return fmt.Errorf("failed to get OAuth token: %v", err)
 	}
@@ -216,7 +249,7 @@ func LoginWithOAuth(plaintext, jsonOut bool) error {
 		return fmt.Errorf("failed to validate OAuth token: %v", err)
 	}
 
-	// Save the OAuth token
+	// Save the OAuth token to the legacy config for backward compatibility
 	config := AuthConfig{
 		OAuthToken: tokenResp.AccessToken,
 	}
@@ -275,8 +308,69 @@ func GetCurrentUser() (*User, error) {
 	}, nil
 }
 
+// RefreshOAuthToken forces a refresh of the OAuth token
+func RefreshOAuthToken() error {
+	// Try to load OAuth config from environment
+	oauthConfig, err := oauth.LoadFromEnvironment()
+	if err != nil {
+		return fmt.Errorf("failed to load OAuth config: %w", err)
+	}
+	
+	if !oauthConfig.IsComplete() {
+		return fmt.Errorf("OAuth not configured via environment variables")
+	}
+	
+	// Create OAuth client
+	oauthClient, err := oauth.NewOAuthClientFromConfig(oauthConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create OAuth client: %w", err)
+	}
+	
+	// Force refresh token
+	tokenResp, err := oauthClient.RefreshToken(context.Background(), oauthConfig.Scopes)
+	if err != nil {
+		return fmt.Errorf("failed to refresh OAuth token: %w", err)
+	}
+	
+	// Update legacy config for backward compatibility
+	config := AuthConfig{
+		OAuthToken: tokenResp.AccessToken,
+	}
+	return saveAuth(config)
+}
+
+// GetOAuthTokenInfo returns information about the current OAuth token
+func GetOAuthTokenInfo() (map[string]interface{}, error) {
+	// Try to load OAuth config from environment
+	oauthConfig, err := oauth.LoadFromEnvironment()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load OAuth config: %w", err)
+	}
+	
+	if !oauthConfig.IsComplete() {
+		return map[string]interface{}{
+			"configured": false,
+			"error":      "OAuth not configured via environment variables",
+		}, nil
+	}
+	
+	// Create OAuth client
+	oauthClient, err := oauth.NewOAuthClientFromConfig(oauthConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OAuth client: %w", err)
+	}
+	
+	// Get token info
+	tokenInfo := oauthClient.GetStoredTokenInfo()
+	tokenInfo["configured"] = true
+	tokenInfo["environment"] = oauth.GetEnvironmentStatus()
+	
+	return tokenInfo, nil
+}
+
 // Logout clears stored credentials
 func Logout() error {
+	// Clear legacy config
 	configPath, err := getConfigPath()
 	if err != nil {
 		return err
@@ -285,6 +379,13 @@ func Logout() error {
 	err = os.Remove(configPath)
 	if err != nil && !os.IsNotExist(err) {
 		return err
+	}
+
+	// Clear OAuth token store
+	tokenStore, err := oauth.NewTokenStore()
+	if err == nil {
+		// Ignore error if token store doesn't exist
+		_ = tokenStore.ClearToken()
 	}
 
 	return nil

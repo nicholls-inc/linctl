@@ -93,19 +93,47 @@ var statusCmd = &cobra.Command{
 
 		authMethod, _ := auth.GetAuthMethod()
 
+		// Get OAuth token info if using OAuth
+		var oauthInfo map[string]interface{}
+		if authMethod == "oauth" {
+			oauthInfo, _ = auth.GetOAuthTokenInfo()
+		}
+
 		if jsonOut {
-			output.JSON(map[string]interface{}{
+			result := map[string]interface{}{
 				"authenticated": true,
 				"method":        authMethod,
 				"user":          user,
-			})
+			}
+			if oauthInfo != nil {
+				result["oauth"] = oauthInfo
+			}
+			output.JSON(result)
 		} else if plaintext {
 			fmt.Printf("Authenticated as: %s (%s) via %s\n", user.Name, user.Email, authMethod)
+			if oauthInfo != nil && oauthInfo["valid"].(bool) {
+				if expiresIn, ok := oauthInfo["expires_in_human"].(string); ok {
+					fmt.Printf("Token expires in: %s\n", expiresIn)
+				}
+			}
 		} else {
 			fmt.Println(color.New(color.FgGreen).Sprint("✅ Authenticated"))
 			fmt.Printf("Method: %s\n", color.New(color.FgCyan).Sprint(authMethod))
 			fmt.Printf("User: %s\n", color.New(color.FgCyan).Sprint(user.Name))
 			fmt.Printf("Email: %s\n", color.New(color.FgCyan).Sprint(user.Email))
+			
+			if oauthInfo != nil {
+				if valid, ok := oauthInfo["valid"].(bool); ok && valid {
+					if expiresIn, ok := oauthInfo["expires_in_human"].(string); ok {
+						fmt.Printf("Token expires in: %s\n", color.New(color.FgYellow).Sprint(expiresIn))
+					}
+					if scope, ok := oauthInfo["scope"].(string); ok {
+						fmt.Printf("Scopes: %s\n", color.New(color.FgCyan).Sprint(scope))
+					}
+				} else {
+					fmt.Println(color.New(color.FgRed).Sprint("⚠️  OAuth token is expired or invalid"))
+				}
+			}
 		}
 	},
 }
@@ -137,6 +165,37 @@ var logoutCmd = &cobra.Command{
 	},
 }
 
+var refreshCmd = &cobra.Command{
+	Use:   "refresh",
+	Short: "Refresh OAuth token",
+	Long:  `Force refresh of the OAuth access token.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		plaintext := viper.GetBool("plaintext")
+		jsonOut := viper.GetBool("json")
+
+		if !plaintext && !jsonOut {
+			fmt.Println(color.New(color.FgYellow).Sprint("🔄 Refreshing OAuth token..."))
+		}
+
+		err := auth.RefreshOAuthToken()
+		if err != nil {
+			output.Error(fmt.Sprintf("Token refresh failed: %v", err), plaintext, jsonOut)
+			os.Exit(1)
+		}
+
+		if jsonOut {
+			output.JSON(map[string]interface{}{
+				"status":  "success",
+				"message": "OAuth token refreshed successfully",
+			})
+		} else if plaintext {
+			fmt.Println("OAuth token refreshed successfully")
+		} else {
+			fmt.Println(color.New(color.FgGreen).Sprint("✅ OAuth token refreshed successfully"))
+		}
+	},
+}
+
 var whoamiCmd = &cobra.Command{
 	Use:   "whoami",
 	Short: "Show current user",
@@ -150,6 +209,7 @@ func init() {
 	rootCmd.AddCommand(authCmd)
 	authCmd.AddCommand(loginCmd)
 	authCmd.AddCommand(statusCmd)
+	authCmd.AddCommand(refreshCmd)
 	authCmd.AddCommand(logoutCmd)
 
 	// Add OAuth flag to login command
