@@ -5,7 +5,7 @@ A comprehensive command-line interface for Linear's API, built with agents in mi
 
 ## ✨ Features
 
-- 🔐 **Authentication**: Personal API Key support
+- 🔐 **Authentication**: Personal API Key and OAuth support
 - 📋 **Issue Management**: Create, list, view, update, assign, and manage issues with full details
   - Sub-issue hierarchy with parent/child relationships
   - Git branch integration showing linked branches
