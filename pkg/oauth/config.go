@@ -75,6 +75,7 @@ func (ac *ActorConfig) IsConfigured() bool {
 
 // GetActor returns the actor name, using the provided value or falling back to default
 func (ac *ActorConfig) GetActor(provided string) string {
+	provided = strings.TrimSpace(provided)
 	if provided != "" {
 		return provided
 	}
@@ -86,6 +87,7 @@ func (ac *ActorConfig) GetActor(provided string) string {
 
 // GetAvatarURL returns the avatar URL, using the provided value or falling back to default
 func (ac *ActorConfig) GetAvatarURL(provided string) string {
+	provided = strings.TrimSpace(provided)
 	if provided != "" {
 		return provided
 	}
