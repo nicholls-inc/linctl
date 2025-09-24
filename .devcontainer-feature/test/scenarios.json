@@ -1,0 +1,33 @@
+{
+    "scenarios": [
+        {
+            "name": "default",
+            "description": "Test default installation (latest version from releases)",
+            "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+            "features": {
+                "linctl": {}
+            }
+        },
+        {
+            "name": "source-build",
+            "description": "Test source build installation",
+            "image": "mcr.microsoft.com/devcontainers/go:1.23",
+            "features": {
+                "linctl": {
+                    "installMethod": "source"
+                }
+            }
+        },
+        {
+            "name": "specific-version",
+            "description": "Test installation with specific version",
+            "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+            "features": {
+                "linctl": {
+                    "version": "latest",
+                    "installMethod": "release"
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,64 @@
+name: Publish DevContainer Feature
+
+on:
+  push:
+    branches: [master]
+    paths: ['.devcontainer-feature/**']
+  pull_request:
+    paths: ['.devcontainer-feature/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test installation script
+        run: |
+          cd .devcontainer-feature
+          echo "Testing linctl installation..."
+          sudo bash install.sh
+
+          if command -v linctl > /dev/null 2>&1; then
+            echo "✅ linctl installed successfully"
+            linctl --version
+          else
+            echo "❌ linctl installation failed"
+            exit 1
+          fi
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install DevContainer CLI
+        run: npm install -g @devcontainers/cli
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish feature
+        run: |
+          npx @devcontainers/cli features publish \
+            --registry ghcr.io \
+            --namespace nicholls-inc/linctl \
+            .devcontainer-feature

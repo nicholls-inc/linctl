@@ -1,0 +1,33 @@
+{
+    "id": "linctl",
+    "version": "1.1.0",
+    "name": "Linear CLI (linctl)",
+    "description": "Installs linctl, a command-line interface for Linear project management",
+    "documentationURL": "https://github.com/nicholls-inc/linctl",
+    "licenseURL": "https://github.com/nicholls-inc/linctl/blob/master/LICENSE",
+    "keywords": [
+        "linear",
+        "cli",
+        "project-management",
+        "linctl"
+    ],
+    "options": {
+        "version": {
+            "type": "string",
+            "description": "Version of linctl to install. Use 'latest' for the most recent release.",
+            "default": "latest"
+        },
+        "installMethod": {
+            "type": "string",
+            "enum": [
+                "release",
+                "source"
+            ],
+            "default": "release",
+            "description": "Installation method: 'release' downloads pre-built binaries, 'source' builds from source code"
+        }
+    },
+    "containerEnv": {
+        "PATH": "${PATH}:/usr/local/bin"
+    }
+}
