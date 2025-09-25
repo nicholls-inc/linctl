@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/dorkitude/linctl/pkg/utils"
+	"github.com/nicholls-inc/linctl/pkg/utils"
 )
 
 func TestActorParameterIntegration(t *testing.T) {

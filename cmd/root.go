@@ -14,6 +14,7 @@ var (
 	cfgFile   string
 	plaintext bool
 	jsonOut   bool
+	version   = "0.1.0" // Default version, can be overridden at build time
 )
 
 // generateHeader creates a nice header box with proper Unicode box drawing
@@ -65,7 +66,7 @@ var rootCmd = &cobra.Command{
 	Use:     "linctl",
 	Short:   "A comprehensive Linear CLI tool",
 	Long:    color.New(color.FgCyan).Sprintf("%s\nA comprehensive CLI tool for Linear's API featuring:\n• Issue management (create, list, update, archive)\n• Project tracking and collaboration  \n• Team and user management\n• Comments and attachments\n• Webhook configuration\n• Table/plaintext/JSON output formats\n", generateHeader()),
-	Version: "0.1.0",
+	Version: version,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

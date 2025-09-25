@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/dorkitude/linctl/pkg/logging"
+	"github.com/nicholls-inc/linctl/pkg/logging"
 )
 
 // RateLimitConfig defines rate limiting configuration

@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dorkitude/linctl/pkg/logging"
-	"github.com/dorkitude/linctl/pkg/ratelimit"
-	"github.com/dorkitude/linctl/pkg/resilience"
+	"github.com/nicholls-inc/linctl/pkg/logging"
+	"github.com/nicholls-inc/linctl/pkg/ratelimit"
+	"github.com/nicholls-inc/linctl/pkg/resilience"
 )
 
 // EnhancedClient is a production-ready API client with retry logic and rate limiting

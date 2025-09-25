@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dorkitude/linctl/pkg/api"
-	"github.com/dorkitude/linctl/pkg/oauth"
 	"github.com/fatih/color"
+	"github.com/nicholls-inc/linctl/pkg/api"
+	"github.com/nicholls-inc/linctl/pkg/oauth"
 )
 
 type User struct {

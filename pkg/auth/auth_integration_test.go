@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dorkitude/linctl/pkg/oauth"
+	"github.com/nicholls-inc/linctl/pkg/oauth"
 )
 
 // TestAuthenticationPersistence verifies that authentication doesn't get corrupted

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dorkitude/linctl/pkg/logging"
-	"github.com/dorkitude/linctl/pkg/ratelimit"
-	"github.com/dorkitude/linctl/pkg/resilience"
+	"github.com/nicholls-inc/linctl/pkg/logging"
+	"github.com/nicholls-inc/linctl/pkg/ratelimit"
+	"github.com/nicholls-inc/linctl/pkg/resilience"
 )
 
 // ProductionConfig holds all production-ready configuration
