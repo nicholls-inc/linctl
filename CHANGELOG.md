@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/nicholls-inc/linctl/compare/v0.2.2...v0.2.3) (2025-09-25)
+
+
+### Features
+
+* auto-bump devcontainer feature version with linctl releases ([a597899](https://github.com/nicholls-inc/linctl/commit/a59789937ea576b7b4ee88ca93a78bea91969dac))
+
 ## [0.2.2](https://github.com/nicholls-inc/linctl/compare/v0.2.1...v0.2.2) (2025-09-25)
 
 
