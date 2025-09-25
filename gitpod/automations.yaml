@@ -1,0 +1,141 @@
+tasks:
+    setupGitHubCLI:
+        name: Setup GitHub CLI
+        description: Sets up the GitHub CLI alias and authenticates as an App.
+        command: |
+          mkdir -p ~/.local
+          mkdir -p ~/.local/bin
+          ln -sf /workspaces/linctl/bin/gh-app-remote.sh ~/.local/bin/gh-app
+          chmod +x ~/.local/bin/gh-app
+          git config --global user.name "${GIT_USER_NAME:-Ona Agent}"
+          git config --global user.email "${GIT_USER_EMAIL:-ona-agent@harrynicholls.com}"
+        triggeredBy:
+            # postDevcontainerStart activates every time the devcontainer is started, e.g. on first start or devcontainer rebuild
+            - postDevcontainerStart
+
+    setupLinearCLI:
+        name: Setup Linear CLI Authentication
+        description: Configures OAuth authentication for linctl CLI (installed via DevContainer feature).
+        command: |
+          # Verify linctl is installed via DevContainer feature
+          if command -v linctl >/dev/null 2>&1; then
+            echo "✅ linctl CLI found (installed via DevContainer feature)"
+            linctl --version
+
+            # Setup OAuth authentication if credentials are available
+            echo ""
+            echo "=== Linear OAuth Authentication Setup ==="
+
+            # Check for OAuth environment variables
+            if [ -n "${LINEAR_CLIENT_ID:-}" ] && [ -n "${LINEAR_CLIENT_SECRET:-}" ]; then
+              echo "✓ OAuth credentials detected"
+              echo "  CLIENT_ID: ${LINEAR_CLIENT_ID:0:8}..." # Show first 8 chars only
+
+              # Set default actor if not provided
+              export LINEAR_DEFAULT_ACTOR="${LINEAR_DEFAULT_ACTOR:-Gitpod Agent}"
+              echo "  Default Actor: ${LINEAR_DEFAULT_ACTOR}"
+
+              # Attempt OAuth authentication with timeout
+              echo "Authenticating with Linear..."
+              if timeout 30 linctl auth login --oauth --json > /tmp/oauth_result.json 2>&1; then
+                echo "✅ OAuth authentication successful"
+
+                # Verify authentication status with detailed output
+                if linctl auth status --json > /tmp/auth_status.json 2>&1; then
+                  echo "✅ Authentication verified"
+
+                  # Extract and display user info safely
+                  if command -v jq >/dev/null 2>&1; then
+                    USER_INFO=$(jq -r 'if .user then "User: " + .user.name + " (" + .user.email + ")" else "Authentication active" end' /tmp/auth_status.json 2>/dev/null)
+                    echo "  ${USER_INFO}"
+
+                    # Show token expiry if available
+                    TOKEN_EXPIRY=$(jq -r 'if .token_expires_at then "Token expires: " + .token_expires_at else "" end' /tmp/auth_status.json 2>/dev/null)
+                    if [ -n "$TOKEN_EXPIRY" ] && [ "$TOKEN_EXPIRY" != "null" ]; then
+                      echo "  ${TOKEN_EXPIRY}"
+                    fi
+                  else
+                    echo "  Authentication active (jq not available for detailed info)"
+                  fi
+
+                  # Test basic functionality
+                  echo "Testing Linear API access..."
+                  if timeout 10 linctl team list --json > /dev/null 2>&1; then
+                    echo "✅ Linear API access confirmed"
+                  else
+                    echo "⚠️  Linear API test failed - check permissions"
+                  fi
+                else
+                  echo "⚠️  Authentication setup completed but status check failed"
+                  echo "  This may indicate a temporary issue - authentication might still work"
+                fi
+              else
+                echo "❌ OAuth authentication failed"
+
+                # Show error details if available
+                if [ -f /tmp/oauth_result.json ]; then
+                  ERROR_MSG=$(cat /tmp/oauth_result.json 2>/dev/null | head -3)
+                  if [ -n "$ERROR_MSG" ]; then
+                    echo "  Error details: $ERROR_MSG"
+                  fi
+                fi
+
+                echo "  Troubleshooting:"
+                echo "  • Verify LINEAR_CLIENT_ID and LINEAR_CLIENT_SECRET are correct"
+                echo "  • Ensure OAuth app has 'Client Credentials' enabled in Linear"
+                echo "  • Check network connectivity to api.linear.app"
+                echo "  • Try manual authentication: linctl auth login --oauth"
+              fi
+
+              # Cleanup temporary files
+              rm -f /tmp/oauth_result.json /tmp/auth_status.json
+
+            else
+              echo "ℹ️  OAuth credentials not configured"
+              echo "  Missing environment variables:"
+              [ -z "${LINEAR_CLIENT_ID:-}" ] && echo "  • LINEAR_CLIENT_ID"
+              [ -z "${LINEAR_CLIENT_SECRET:-}" ] && echo "  • LINEAR_CLIENT_SECRET"
+              echo ""
+              echo "  To enable OAuth authentication:"
+              echo "  1. Create OAuth app in Linear (Settings → API → OAuth Applications)"
+              echo "  2. Set environment variables in your Gitpod workspace"
+              echo "  3. Restart the devcontainer or run: gitpod automations task start setupLinearCLI"
+              echo ""
+              echo "  Alternative: Use manual authentication with 'linctl auth login'"
+            fi
+
+            echo "=== Linear CLI Authentication Setup Complete ==="
+          else
+            echo "❌ linctl CLI not found - ensure DevContainer feature is properly configured"
+            echo "   Expected: linctl should be installed via DevContainer feature"
+            exit 1
+          fi
+        triggeredBy:
+            - postDevcontainerStart
+
+    setupPreCommitHooks:
+        name: Setup Pre-commit Hooks
+        description: Installs and configures pre-commit hooks for code quality checks.
+        command: |
+          # Install pre-commit using pipx if not already installed
+          if ! command -v pre-commit &> /dev/null; then
+            echo "Installing pre-commit..."
+            pipx install pre-commit
+          fi
+
+          # Install pre-commit hooks if .pre-commit-config.yaml exists
+          if [ -f .pre-commit-config.yaml ]; then
+            echo "Installing pre-commit hooks..."
+            pre-commit install
+            echo "Pre-commit hooks installed successfully!"
+          else
+            echo "No .pre-commit-config.yaml found, skipping pre-commit setup"
+          fi
+
+          # Install staticcheck for Go linting
+          if command -v go &> /dev/null; then
+            echo "Installing staticcheck..."
+            go install honnef.co/go/tools/cmd/staticcheck@latest
+          fi
+        triggeredBy:
+            - postDevcontainerStart
