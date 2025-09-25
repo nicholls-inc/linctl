@@ -1,22 +1,33 @@
 name: Release linctl
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Release tag (e.g., v1.0.0)'
-        required: true
-        type: string
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+      - master
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - name: Release Please
+        uses: google-github-actions/release-please-action@v4
+        id: release
+        with:
+          config-file: .release-please-config.json
+          manifest-file: .release-please-manifest.json
+
   build-and-release:
     runs-on: ubuntu-latest
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,12 +51,12 @@ jobs:
 
           # Build for linux/amd64
           GOOS=linux GOARCH=amd64 go build \
-            -ldflags="-s -w -X main.version=${{ github.ref_name }}" \
+            -ldflags="-s -w -X github.com/dorkitude/linctl/cmd.version=${{ needs.release-please.outputs.tag_name }}" \
             -o dist/linctl-linux-amd64 .
 
           # Build for linux/arm64
           GOOS=linux GOARCH=arm64 go build \
-            -ldflags="-s -w -X main.version=${{ github.ref_name }}" \
+            -ldflags="-s -w -X github.com/dorkitude/linctl/cmd.version=${{ needs.release-please.outputs.tag_name }}" \
             -o dist/linctl-linux-arm64 .
 
       - name: Generate checksums
@@ -54,15 +65,13 @@ jobs:
           sha256sum * > checksums.txt
           cat checksums.txt
 
-      - name: Create Release
+      - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
           files: |
             dist/linctl-linux-amd64
             dist/linctl-linux-arm64
             dist/checksums.txt
-          generate_release_notes: true
-          draft: false
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
