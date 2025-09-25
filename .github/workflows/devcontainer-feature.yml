@@ -55,6 +55,68 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Bump feature version based on linctl release
+        run: |
+          # Get the current linctl release version (e.g., v0.2.1)
+          LINCTL_VERSION="${{ github.event.release.tag_name }}"
+          echo "LinCTL release version: $LINCTL_VERSION"
+
+          # Remove 'v' prefix and split into components
+          LINCTL_VERSION_CLEAN=${LINCTL_VERSION#v}
+          IFS='.' read -r LINCTL_MAJOR LINCTL_MINOR LINCTL_PATCH <<< "$LINCTL_VERSION_CLEAN"
+
+          # Get current feature version from devcontainer-feature.json
+          CURRENT_FEATURE_VERSION=$(jq -r '.version' .devcontainer-feature/devcontainer-feature.json)
+          echo "Current feature version: $CURRENT_FEATURE_VERSION"
+
+          # Split current feature version into components
+          IFS='.' read -r FEATURE_MAJOR FEATURE_MINOR FEATURE_PATCH <<< "$CURRENT_FEATURE_VERSION"
+
+          # Get previous linctl version to determine bump type
+          PREVIOUS_RELEASES=$(curl -s "https://api.github.com/repos/nicholls-inc/linctl/releases" | jq -r '.[1:] | .[].tag_name' | head -1)
+          PREVIOUS_VERSION=${PREVIOUS_RELEASES#v}
+
+          if [ -n "$PREVIOUS_VERSION" ]; then
+            IFS='.' read -r PREV_MAJOR PREV_MINOR PREV_PATCH <<< "$PREVIOUS_VERSION"
+            echo "Previous linctl version: $PREVIOUS_VERSION"
+
+            # Determine bump type
+            if [ "$LINCTL_MAJOR" -gt "$PREV_MAJOR" ]; then
+              # Major version bump
+              NEW_FEATURE_MAJOR=$((FEATURE_MAJOR + 1))
+              NEW_FEATURE_MINOR=0
+              NEW_FEATURE_PATCH=0
+              echo "Detected major version bump"
+            elif [ "$LINCTL_MINOR" -gt "$PREV_MINOR" ]; then
+              # Minor version bump
+              NEW_FEATURE_MAJOR=$FEATURE_MAJOR
+              NEW_FEATURE_MINOR=$((FEATURE_MINOR + 1))
+              NEW_FEATURE_PATCH=0
+              echo "Detected minor version bump"
+            else
+              # Patch version bump
+              NEW_FEATURE_MAJOR=$FEATURE_MAJOR
+              NEW_FEATURE_MINOR=$FEATURE_MINOR
+              NEW_FEATURE_PATCH=$((FEATURE_PATCH + 1))
+              echo "Detected patch version bump"
+            fi
+          else
+            # Fallback: just bump patch version
+            NEW_FEATURE_MAJOR=$FEATURE_MAJOR
+            NEW_FEATURE_MINOR=$FEATURE_MINOR
+            NEW_FEATURE_PATCH=$((FEATURE_PATCH + 1))
+            echo "Could not determine previous version, bumping patch"
+          fi
+
+          NEW_FEATURE_VERSION="$NEW_FEATURE_MAJOR.$NEW_FEATURE_MINOR.$NEW_FEATURE_PATCH"
+          echo "New feature version: $NEW_FEATURE_VERSION"
+
+          # Update the devcontainer-feature.json with new version
+          jq --arg version "$NEW_FEATURE_VERSION" '.version = $version' .devcontainer-feature/devcontainer-feature.json > temp.json
+          mv temp.json .devcontainer-feature/devcontainer-feature.json
+
+          echo "Updated devcontainer-feature.json with version $NEW_FEATURE_VERSION"
+
       - name: Publish feature
         run: |
           npx @devcontainers/cli features publish \
