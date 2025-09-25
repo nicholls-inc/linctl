@@ -6,9 +6,17 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
+
+// logDebug logs debug messages if LINCTL_DEBUG environment variable is set
+func logDebug(format string, args ...interface{}) {
+	if os.Getenv("LINCTL_DEBUG") != "" {
+		fmt.Printf("[DEBUG] "+format+"\n", args...)
+	}
+}
 
 // OAuthClient handles OAuth client credentials flow for Linear
 type OAuthClient struct {
@@ -190,28 +198,85 @@ func (c *OAuthClient) GetValidToken(ctx context.Context, scopes []string) (*Toke
 	if saveErr := c.tokenStore.SaveToken(newToken); saveErr != nil {
 		// Log the error but don't fail the request
 		// The token is still valid for immediate use
-		fmt.Printf("Warning: failed to save token: %v\n", saveErr)
+		logDebug("Warning: failed to save OAuth token to store: %v", saveErr)
 	}
 	
 	return newToken, nil
 }
 
-// RefreshToken forces a token refresh and saves the new token
-func (c *OAuthClient) RefreshToken(ctx context.Context, scopes []string) (*TokenResponse, error) {
-	// Get a fresh token
-	newToken, err := c.GetAccessToken(ctx, scopes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to refresh token: %w", err)
+// GetValidTokenWithRefresh returns a valid access token with enhanced refresh logic and retry
+func (c *OAuthClient) GetValidTokenWithRefresh(ctx context.Context, scopes []string) (*TokenResponse, error) {
+	if c.tokenStore == nil {
+		// Fallback to direct token request if no token store
+		return c.GetAccessToken(ctx, scopes)
 	}
 	
-	// Save the new token if we have a token store
-	if c.tokenStore != nil {
-		if saveErr := c.tokenStore.SaveToken(newToken); saveErr != nil {
-			return nil, fmt.Errorf("failed to save refreshed token: %w", saveErr)
+	// Try to load existing valid token with reduced buffer (2 minutes instead of 5)
+	storedToken, err := c.tokenStore.GetValidTokenWithBuffer(2 * time.Minute)
+	if err == nil && storedToken != nil {
+		// Token is valid with buffer, return it
+		return storedToken.ToTokenResponse(), nil
+	}
+	
+	// Token is missing, expired, or will expire soon - get a new one with retry logic
+	const maxRetries = 3
+	var lastErr error
+	
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		newToken, err := c.GetAccessToken(ctx, scopes)
+		if err == nil {
+			// Successfully got new token, save it
+			if saveErr := c.tokenStore.SaveToken(newToken); saveErr != nil {
+				// Log the error but don't fail the request
+				logDebug("Warning: failed to save OAuth token on attempt %d: %v", attempt, saveErr)
+			}
+			return newToken, nil
+		}
+		
+		lastErr = err
+		if attempt < maxRetries {
+			// Wait before retry with exponential backoff
+			waitTime := time.Duration(attempt) * time.Second
+			time.Sleep(waitTime)
 		}
 	}
 	
-	return newToken, nil
+	return nil, fmt.Errorf("failed to get new access token after %d attempts: %w", maxRetries, lastErr)
+}
+
+// RefreshToken forces a token refresh and saves the new token with retry logic
+func (c *OAuthClient) RefreshToken(ctx context.Context, scopes []string) (*TokenResponse, error) {
+	const maxRetries = 3
+	var lastErr error
+	
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		// Get a fresh token
+		newToken, err := c.GetAccessToken(ctx, scopes)
+		if err == nil {
+			// Successfully got new token, save it if we have a token store
+			if c.tokenStore != nil {
+				if saveErr := c.tokenStore.SaveToken(newToken); saveErr != nil {
+					// Log warning but don't fail - token is still valid for immediate use
+					logDebug("Warning: failed to save refreshed token on attempt %d: %v", attempt, saveErr)
+				}
+			}
+			return newToken, nil
+		}
+		
+		lastErr = err
+		if attempt < maxRetries {
+			// Wait before retry with exponential backoff
+			waitTime := time.Duration(attempt) * time.Second
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(waitTime):
+				// Continue to next attempt
+			}
+		}
+	}
+	
+	return nil, fmt.Errorf("failed to refresh token after %d attempts: %w", maxRetries, lastErr)
 }
 
 // GetStoredTokenInfo returns information about the currently stored token
@@ -249,4 +314,34 @@ func (c *OAuthClient) HasValidStoredToken() bool {
 	}
 	
 	return c.tokenStore.IsTokenValid()
+}
+
+// ValidateAndRefreshToken validates a token and refreshes if invalid
+func (c *OAuthClient) ValidateAndRefreshToken(ctx context.Context, scopes []string) (*TokenResponse, error) {
+	// First try to get a valid token (may use cached)
+	token, err := c.GetValidTokenWithRefresh(ctx, scopes)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Validate the token by making a test API call
+	if err := c.ValidateToken(ctx, token.AccessToken); err != nil {
+		// Token validation failed, force refresh
+		return c.RefreshToken(ctx, scopes)
+	}
+	
+	return token, nil
+}
+
+// IsTokenError checks if an error indicates token-related issues
+func IsTokenError(err error) bool {
+	if err == nil {
+		return false
+	}
+	
+	errStr := err.Error()
+	return strings.Contains(errStr, "401") ||
+		strings.Contains(errStr, "unauthorized") ||
+		strings.Contains(errStr, "authentication") ||
+		strings.Contains(errStr, "token")
 }

@@ -79,14 +79,14 @@ func (ts *TokenStore) LoadToken() (*StoredToken, error) {
 	data, err := os.ReadFile(ts.configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("no stored token found")
+			return nil, fmt.Errorf("no stored OAuth token found at %s", ts.configPath)
 		}
-		return nil, fmt.Errorf("failed to read token file: %w", err)
+		return nil, fmt.Errorf("failed to read OAuth token file %s: %w", ts.configPath, err)
 	}
 
 	var token StoredToken
 	if err := json.Unmarshal(data, &token); err != nil {
-		return nil, fmt.Errorf("failed to parse stored token: %w", err)
+		return nil, fmt.Errorf("failed to parse stored OAuth token from %s: %w (file may be corrupted)", ts.configPath, err)
 	}
 
 	return &token, nil
@@ -135,6 +135,30 @@ func (ts *TokenStore) GetValidToken() (*StoredToken, error) {
 	}
 	
 	return token, nil
+}
+
+// GetValidTokenWithBuffer returns a valid token with custom expiry buffer
+func (ts *TokenStore) GetValidTokenWithBuffer(buffer time.Duration) (*StoredToken, error) {
+	token, err := ts.LoadToken()
+	if err != nil {
+		return nil, err
+	}
+	
+	if ts.IsTokenExpiredWithBuffer(token, buffer) {
+		return nil, fmt.Errorf("stored token is expired or will expire within buffer")
+	}
+	
+	return token, nil
+}
+
+// IsTokenExpiredWithBuffer checks if a token is expired or will expire within the specified buffer
+func (ts *TokenStore) IsTokenExpiredWithBuffer(token *StoredToken, buffer time.Duration) bool {
+	if token == nil {
+		return true
+	}
+	
+	// Consider token expired if it expires within the specified buffer
+	return time.Now().Add(buffer).After(token.ExpiresAt)
 }
 
 // ToTokenResponse converts a StoredToken back to a TokenResponse

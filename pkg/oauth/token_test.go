@@ -194,3 +194,53 @@ func TestTokenInfo(t *testing.T) {
 		t.Error("Nil token should be reported as invalid")
 	}
 }
+
+func TestTokenStore_GetValidTokenWithBuffer(t *testing.T) {
+	// Create temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "linctl-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create token store with custom path
+	tokenPath := filepath.Join(tempDir, "test-token-buffer.json")
+	store := NewTokenStoreWithPath(tokenPath)
+
+	// Test with token that expires in 3 minutes (should be valid with 2-minute buffer)
+	validToken := &TokenResponse{
+		AccessToken: "valid-token",
+		TokenType:   "Bearer",
+		ExpiresIn:   180, // 3 minutes
+		Scope:       "read write",
+	}
+
+	err = store.SaveToken(validToken)
+	if err != nil {
+		t.Fatalf("Failed to save token: %v", err)
+	}
+
+	// Should be valid with 2-minute buffer
+	token, err := store.GetValidTokenWithBuffer(2 * time.Minute)
+	if err != nil {
+		t.Errorf("Token should be valid with 2-minute buffer: %v", err)
+	}
+	if token == nil {
+		t.Error("Expected valid token, got nil")
+	}
+
+	// Should be invalid with 4-minute buffer
+	_, err = store.GetValidTokenWithBuffer(4 * time.Minute)
+	if err == nil {
+		t.Error("Token should be invalid with 4-minute buffer")
+	}
+
+	// Test IsTokenExpiredWithBuffer
+	storedToken, _ := store.LoadToken()
+	if store.IsTokenExpiredWithBuffer(storedToken, 2*time.Minute) {
+		t.Error("Token should not be expired with 2-minute buffer")
+	}
+	if !store.IsTokenExpiredWithBuffer(storedToken, 4*time.Minute) {
+		t.Error("Token should be expired with 4-minute buffer")
+	}
+}

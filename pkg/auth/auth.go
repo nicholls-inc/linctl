@@ -22,8 +22,8 @@ type User struct {
 }
 
 type AuthConfig struct {
-	APIKey     string `json:"api_key,omitempty"`
-	OAuthToken string `json:"oauth_token,omitempty"`
+	APIKey string `json:"api_key,omitempty"`
+	// OAuthToken removed - OAuth tokens are now managed exclusively by OAuth TokenStore
 }
 
 // getConfigPath returns the path to the auth config file
@@ -75,46 +75,51 @@ func loadAuth() (*AuthConfig, error) {
 	return &config, nil
 }
 
-// GetAuthHeader returns the authorization header value with smart fallback and clear errors
+// GetAuthHeader returns the authorization header value with unified token management
 func GetAuthHeader() (string, error) {
-	// First try OAuth with automatic token management
-	if token, err := getValidOAuthToken(); err == nil && token != "" {
+	// First try OAuth with automatic token refresh
+	token, oauthErr := getValidOAuthTokenWithRefresh()
+	if oauthErr == nil && token != "" {
 		return "Bearer " + token, nil
 	}
 	
-	// Fall back to stored credentials
+	// Fall back to stored API key only (no OAuth tokens in auth config)
 	config, err := loadAuth()
 	if err != nil {
 		if os.IsNotExist(err) {
+			// No auth config exists
+			if oauthErr != nil {
+				return "", fmt.Errorf("not authenticated (OAuth failed: %v)\n💡 Set up authentication: linctl auth login --oauth (recommended) or linctl auth login", oauthErr)
+			}
 			return "", fmt.Errorf("not authenticated\n💡 Set up authentication: linctl auth login --oauth (recommended) or linctl auth login")
 		}
-		return "", fmt.Errorf("authentication error: %w\n💡 Try: linctl auth status", err)
+		return "", fmt.Errorf("authentication config error: %w\n💡 Try: linctl auth status", err)
 	}
 
-	// Check OAuth token from config
-	if config.OAuthToken != "" {
-		return "Bearer " + config.OAuthToken, nil
-	}
-
-	// Fall back to API key for backward compatibility
+	// Only use API key from auth config (OAuth tokens managed separately)
 	if config.APIKey != "" {
 		return config.APIKey, nil
 	}
 
+	// No valid authentication found - provide detailed error context
+	if oauthErr != nil {
+		return "", fmt.Errorf("no valid authentication found (OAuth failed: %v)\n💡 Set up authentication: linctl auth login --oauth (recommended) or linctl auth login", oauthErr)
+	}
+	
 	return "", fmt.Errorf("no valid authentication found\n💡 Set up authentication: linctl auth login --oauth (recommended) or linctl auth login")
 }
 
-// getValidOAuthToken attempts to get a valid OAuth token using environment variables
-func getValidOAuthToken() (string, error) {
+// getValidOAuthTokenWithRefresh attempts to get a valid OAuth token with automatic refresh
+func getValidOAuthTokenWithRefresh() (string, error) {
 	// Try to load OAuth config from environment
 	oauthConfig, err := oauth.LoadFromEnvironment()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("OAuth config load failed: %w", err)
 	}
 	
 	// Check if OAuth is configured
 	if !oauthConfig.IsComplete() {
-		return "", fmt.Errorf("OAuth not configured via environment variables")
+		return "", fmt.Errorf("OAuth not configured via environment variables (missing CLIENT_ID or CLIENT_SECRET)")
 	}
 	
 	// Create OAuth client
@@ -123,13 +128,23 @@ func getValidOAuthToken() (string, error) {
 		return "", fmt.Errorf("failed to create OAuth client: %w", err)
 	}
 	
-	// Get valid token (will use cached token if available and valid)
-	tokenResp, err := oauthClient.GetValidToken(context.Background(), oauthConfig.Scopes)
+	// Get valid token with automatic refresh (this handles token expiry internally)
+	tokenResp, err := oauthClient.GetValidTokenWithRefresh(context.Background(), oauthConfig.Scopes)
 	if err != nil {
-		return "", fmt.Errorf("failed to get valid OAuth token: %w", err)
+		// Enhanced error context for debugging
+		if oauth.IsTokenError(err) {
+			return "", fmt.Errorf("OAuth token authentication failed (token may be expired or invalid): %w\n💡 Try: linctl auth login --oauth", err)
+		}
+		return "", fmt.Errorf("failed to get valid OAuth token: %w\n💡 Check your LINEAR_CLIENT_ID and LINEAR_CLIENT_SECRET environment variables", err)
 	}
 	
 	return tokenResp.AccessToken, nil
+}
+
+// getValidOAuthToken attempts to get a valid OAuth token using environment variables (legacy)
+// Kept for backward compatibility but now calls the refresh version
+func getValidOAuthToken() (string, error) {
+	return getValidOAuthTokenWithRefresh()
 }
 
 // Login handles the authentication flow
@@ -186,11 +201,13 @@ func loginWithAPIKey(plaintext, jsonOut bool) error {
 	return nil
 }
 
+
+
 // LoginWithOAuth handles OAuth authentication flow with existing auth detection
 func LoginWithOAuth(plaintext, jsonOut bool) error {
 	// Check for existing authentication
 	existingConfig, _ := loadAuth()
-	hasExistingAuth := existingConfig != nil && (existingConfig.APIKey != "" || existingConfig.OAuthToken != "")
+	hasExistingAuth := existingConfig != nil && existingConfig.APIKey != ""
 	
 	if hasExistingAuth && !plaintext && !jsonOut {
 		if existingConfig.APIKey != "" {
@@ -274,18 +291,18 @@ func LoginWithOAuth(plaintext, jsonOut bool) error {
 		return fmt.Errorf("failed to validate OAuth token: %v", err)
 	}
 
-	// Preserve existing API key if present, add OAuth token
-	config := AuthConfig{
-		OAuthToken: tokenResp.AccessToken,
-	}
+	// OAuth tokens are now managed exclusively by OAuth TokenStore
+	// Only preserve existing API key if present (no OAuth token in auth config)
+	config := AuthConfig{}
 	if existingConfig != nil && existingConfig.APIKey != "" {
 		config.APIKey = existingConfig.APIKey
+		// Save the preserved API key
+		err = saveAuth(config)
+		if err != nil {
+			return err
+		}
 	}
-	
-	err = saveAuth(config)
-	if err != nil {
-		return err
-	}
+	// Note: OAuth token is automatically saved by OAuth client to TokenStore
 
 	if !plaintext && !jsonOut {
 		fmt.Printf("\n%s OAuth setup complete! Future commands will use OAuth automatically.\n",
@@ -302,6 +319,8 @@ func LoginWithOAuth(plaintext, jsonOut bool) error {
 	return nil
 }
 
+
+
 // AuthStatus represents comprehensive authentication status
 type AuthStatus struct {
 	Authenticated bool              `json:"authenticated"`
@@ -316,22 +335,17 @@ type AuthStatus struct {
 // determineAuthMethod determines the current authentication method using the same priority as GetAuthHeader
 func determineAuthMethod() string {
 	// First check environment OAuth (highest priority)
-	if token, err := getValidOAuthToken(); err == nil && token != "" {
+	if token, err := getValidOAuthTokenWithRefresh(); err == nil && token != "" {
 		return "oauth"
 	}
 	
-	// Fall back to stored credentials
+	// Fall back to stored API key only (OAuth tokens no longer stored in auth config)
 	config, err := loadAuth()
 	if err != nil {
 		return "none"
 	}
 
-	// Check stored OAuth token
-	if config.OAuthToken != "" {
-		return "oauth"
-	}
-
-	// Fall back to API key
+	// Only check API key (OAuth tokens managed separately)
 	if config.APIKey != "" {
 		return "api_key"
 	}
@@ -452,21 +466,14 @@ func RefreshOAuthTokenWithFeedback() error {
 	}
 	
 	// Force refresh token
-	tokenResp, err := oauthClient.RefreshToken(context.Background(), oauthConfig.Scopes)
+	_, err = oauthClient.RefreshToken(context.Background(), oauthConfig.Scopes)
 	if err != nil {
 		return fmt.Errorf("OAuth token expired and refresh failed\n💡 Please re-authenticate: linctl auth login --oauth")
 	}
 	
-	// Preserve existing API key if present
-	existingConfig, _ := loadAuth()
-	config := AuthConfig{
-		OAuthToken: tokenResp.AccessToken,
-	}
-	if existingConfig != nil && existingConfig.APIKey != "" {
-		config.APIKey = existingConfig.APIKey
-	}
-	
-	return saveAuth(config)
+	// OAuth tokens are now managed exclusively by OAuth TokenStore
+	// Token is automatically saved by OAuth client
+	return nil
 }
 
 // RefreshOAuthToken forces a refresh of the OAuth token (backward compatibility)
@@ -525,3 +532,5 @@ func Logout() error {
 
 	return nil
 }
+
+
