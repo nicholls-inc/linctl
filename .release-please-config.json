@@ -15,7 +15,7 @@
       ]
     }
   },
-  "bootstrap-sha": "master",
+  "bootstrap-sha": "4bf25b31fe9097d428930025a7b98f20a0da9f69",
   "release-search-depth": 400,
   "commit-search-depth": 500,
   "pull-request-title-pattern": "chore: release ${version}",
