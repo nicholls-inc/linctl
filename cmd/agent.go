@@ -49,7 +49,7 @@ Exit codes:
   3 - Configuration error (missing environment variables)`,
 	Run: func(cmd *cobra.Command, args []string) {
 		jsonOut := viper.GetBool("json")
-		
+
 		// Always use JSON mode for agent commands unless explicitly disabled
 		if !cmd.Flags().Changed("json") && !viper.IsSet("json") {
 			jsonOut = true
@@ -75,7 +75,7 @@ Returns detailed information about:
 Output is always in JSON format for easy parsing by agents.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		jsonOut := viper.GetBool("json")
-		
+
 		// Always use JSON mode for agent commands unless explicitly disabled
 		if !cmd.Flags().Changed("json") && !viper.IsSet("json") {
 			jsonOut = true
@@ -99,7 +99,7 @@ Shows:
 	Run: func(cmd *cobra.Command, args []string) {
 		plaintext := viper.GetBool("plaintext")
 		jsonOut := viper.GetBool("json")
-		
+
 		// Always use JSON mode for agent commands unless explicitly disabled
 		if !cmd.Flags().Changed("json") && !viper.IsSet("json") {
 			jsonOut = true
@@ -130,34 +130,34 @@ Shows:
 			} else {
 				fmt.Println(color.New(color.FgCyan, color.Bold).Sprint("🤖 Agent Configuration"))
 				fmt.Println()
-				
+
 				// OAuth status
 				if oauthConfig["oauth_configured"].(bool) {
-					fmt.Printf("%s OAuth: %s\n", 
+					fmt.Printf("%s OAuth: %s\n",
 						color.New(color.FgGreen).Sprint("✅"),
 						color.New(color.FgGreen).Sprint("Configured"))
 				} else {
-					fmt.Printf("%s OAuth: %s\n", 
+					fmt.Printf("%s OAuth: %s\n",
 						color.New(color.FgRed).Sprint("❌"),
 						color.New(color.FgRed).Sprint("Not Configured"))
 				}
-				
+
 				// Actor status
 				if oauthConfig["actor_configured"].(bool) {
-					fmt.Printf("%s Actor: %s\n", 
+					fmt.Printf("%s Actor: %s\n",
 						color.New(color.FgGreen).Sprint("✅"),
 						color.New(color.FgGreen).Sprint("Configured"))
 					if agentConfig.DefaultActor != "" {
 						fmt.Printf("  Default Actor: %s\n", color.New(color.FgCyan).Sprint(agentConfig.DefaultActor))
 					}
 				} else {
-					fmt.Printf("%s Actor: %s\n", 
+					fmt.Printf("%s Actor: %s\n",
 						color.New(color.FgYellow).Sprint("⚠️"),
 						color.New(color.FgYellow).Sprint("Not Configured"))
-					fmt.Printf("  %s Set LINEAR_DEFAULT_ACTOR for consistent attribution\n", 
+					fmt.Printf("  %s Set LINEAR_DEFAULT_ACTOR for consistent attribution\n",
 						color.New(color.FgBlue).Sprint("💡"))
 				}
-				
+
 				// Environment variables
 				fmt.Println()
 				fmt.Println(color.New(color.FgCyan).Sprint("Environment Variables:"))
@@ -183,7 +183,7 @@ This command performs a series of tests:
 Useful for verifying agent setup before running automated workflows.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		jsonOut := viper.GetBool("json")
-		
+
 		// Always use JSON mode for agent commands unless explicitly disabled
 		if !cmd.Flags().Changed("json") && !viper.IsSet("json") {
 			jsonOut = true
@@ -206,10 +206,10 @@ Useful for verifying agent setup before running automated workflows.`,
 		// Test 2: Authentication check
 		authStatus, err := auth.GetAuthStatus()
 		testResults["authentication"] = map[string]interface{}{
-			"passed":       err == nil && authStatus.Authenticated,
-			"method":       authStatus.Method,
-			"user":         authStatus.User,
-			"error":        err,
+			"passed": err == nil && authStatus.Authenticated,
+			"method": authStatus.Method,
+			"user":   authStatus.User,
+			"error":  err,
 		}
 		if err != nil || !authStatus.Authenticated {
 			allPassed = false

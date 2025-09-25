@@ -57,26 +57,26 @@ Send a `PUT` request to the returned `uploadUrl` with the file content.
 ```typescript
 async function uploadFileToLinear(file: File): Promise<string> {
   const uploadPayload = await linearClient.fileUpload(file.type, file.name, file.size);
- 
+
   if (!uploadPayload.success || !uploadPayload.uploadFile) {
     throw new Error("Failed to request upload URL");
   }
- 
+
   const uploadUrl = uploadPayload.uploadFile.uploadUrl;
   const assetUrl = uploadPayload.uploadFile.assetUrl;
- 
+
   const headers = new Headers();
   headers.set("Content-Type", file.type);
   headers.set("Cache-Control", "public, max-age=31536000");
   uploadPayload.uploadFile.headers.forEach(({ key, value }) => headers.set(key, value));
- 
+
   try {
     await fetch(uploadUrl, {
-      method: "PUT", 
+      method: "PUT",
       headers,
       body: file
     });
- 
+
     return assetUrl;
   } catch (e) {
     console.error(e);

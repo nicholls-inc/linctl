@@ -238,10 +238,10 @@ def run_linctl_command(cmd):
     """Run linctl command and return parsed JSON result."""
     try:
         result = subprocess.run(
-            cmd, 
-            shell=True, 
-            capture_output=True, 
-            text=True, 
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
             check=True
         )
         return json.loads(result.stdout)
@@ -331,7 +331,7 @@ set -o pipefail  # Exit on pipe failures
 handle_error() {
     local exit_code=$?
     echo "Error occurred with exit code: $exit_code" >&2
-    
+
     case $exit_code in
         1) echo "General error - check authentication and network" >&2 ;;
         2) echo "Invalid command arguments" >&2 ;;
@@ -340,7 +340,7 @@ handle_error() {
         5) echo "Resource not found" >&2 ;;
         *) echo "Unknown error" >&2 ;;
     esac
-    
+
     exit $exit_code
 }
 
@@ -392,7 +392,7 @@ def run_linctl_command(cmd, check_success=True):
             text=True,
             timeout=30  # 30 second timeout
         )
-        
+
         # Parse JSON output
         try:
             data = json.loads(result.stdout)
@@ -403,7 +403,7 @@ def run_linctl_command(cmd, check_success=True):
                     exit_code=result.returncode
                 )
             raise LinctlError("Failed to parse JSON output")
-        
+
         # Check for application-level errors
         if check_success and not data.get("success", True):
             error_info = data.get("error", {})
@@ -411,9 +411,9 @@ def run_linctl_command(cmd, check_success=True):
                 error_info.get("message", "Unknown error"),
                 details=error_info.get("details")
             )
-        
+
         return data
-        
+
     except subprocess.TimeoutExpired:
         raise LinctlError("Command timed out")
     except subprocess.CalledProcessError as e:
@@ -426,17 +426,17 @@ def main():
         if not auth_status.get("authenticated"):
             logger.error("Not authenticated. Run: linctl auth login --oauth")
             sys.exit(1)
-        
+
         logger.info(f"Authenticated as: {auth_status['user']['name']}")
-        
+
         # Create issue
         issue_result = run_linctl_command(
             "linctl issue create --title 'Python Agent Issue' --team 'ENG' --json"
         )
-        
+
         issue_id = issue_result["data"]["issueCreate"]["issue"]["id"]
         logger.info(f"Created issue: {issue_id}")
-        
+
     except LinctlError as e:
         logger.error(f"Linctl error: {e}")
         if e.details:
@@ -468,14 +468,14 @@ ACTOR_NAME="Issue Management Agent"
 create_issue() {
     local title="$1"
     local description="$2"
-    
+
     local result=$(linctl issue create \
         --title "$title" \
         --team "$TEAM_ID" \
         --description "$description" \
         --actor "$ACTOR_NAME" \
         --json)
-    
+
     if echo "$result" | jq -e '.success' >/dev/null; then
         echo "$result" | jq -r '.data.issueCreate.issue.id'
     else
@@ -488,7 +488,7 @@ create_issue() {
 add_comment() {
     local issue_id="$1"
     local comment_body="$2"
-    
+
     linctl comment create "$issue_id" \
         --body "$comment_body" \
         --actor "$ACTOR_NAME" \
@@ -498,20 +498,20 @@ add_comment() {
 # Main workflow
 main() {
     echo "Starting issue management workflow..."
-    
+
     # Create issue
     ISSUE_ID=$(create_issue "Automated Bug Report" "This issue was created by an automated agent")
     echo "Created issue: $ISSUE_ID"
-    
+
     # Add initial comment
     add_comment "$ISSUE_ID" "Agent has started processing this issue"
-    
+
     # Simulate work
     sleep 2
-    
+
     # Add progress comment
     add_comment "$ISSUE_ID" "Analysis complete. Issue has been categorized and assigned priority."
-    
+
     echo "Workflow completed for issue: $ISSUE_ID"
 }
 
@@ -538,7 +538,7 @@ class LinearMonitoringAgent:
         self.team_id = "OPS"
         self.actor_name = "Monitoring Agent"
         self.avatar_url = "https://example.com/monitoring-avatar.png"
-    
+
     def run_command(self, cmd: str) -> Dict:
         """Run linctl command and return parsed result."""
         try:
@@ -553,7 +553,7 @@ class LinearMonitoringAgent:
         except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
             print(f"Command failed: {e}", file=sys.stderr)
             sys.exit(1)
-    
+
     def create_alert_issue(self, alert: Dict) -> str:
         """Create an issue for a system alert."""
         title = f"🚨 {alert['severity'].upper()}: {alert['title']}"
@@ -569,7 +569,7 @@ class LinearMonitoringAgent:
 
 **Runbook**: {alert.get('runbook_url', 'N/A')}
         """.strip()
-        
+
         cmd = f"""linctl issue create \
             --title '{title}' \
             --team '{self.team_id}' \
@@ -577,10 +577,10 @@ class LinearMonitoringAgent:
             --actor '{self.actor_name}' \
             --avatar-url '{self.avatar_url}' \
             --json"""
-        
+
         result = self.run_command(cmd)
         return result['data']['issueCreate']['issue']['id']
-    
+
     def update_issue_status(self, issue_id: str, status: str, comment: str):
         """Update issue status and add comment."""
         # Add comment
@@ -588,41 +588,41 @@ class LinearMonitoringAgent:
             --body '{comment}' \
             --actor '{self.actor_name}' \
             --json"""
-        
+
         self.run_command(comment_cmd)
-        
+
         # Update status if needed
         if status:
             update_cmd = f"""linctl issue update '{issue_id}' \
                 --state '{status}' \
                 --json"""
             self.run_command(update_cmd)
-    
+
     def _format_metrics(self, metrics: Dict) -> str:
         """Format metrics for display."""
         if not metrics:
             return "No metrics available"
-        
+
         formatted = []
         for key, value in metrics.items():
             formatted.append(f"- **{key}**: {value}")
-        
+
         return "\\n".join(formatted)
-    
+
     def process_alerts(self, alerts: List[Dict]):
         """Process a list of alerts."""
         for alert in alerts:
             try:
                 issue_id = self.create_alert_issue(alert)
                 print(f"Created alert issue: {issue_id}")
-                
+
                 # Add initial processing comment
                 self.update_issue_status(
                     issue_id,
                     "In Progress",
                     "🤖 Alert received and issue created. Monitoring agent is analyzing..."
                 )
-                
+
             except Exception as e:
                 print(f"Failed to process alert {alert.get('id', 'unknown')}: {e}", file=sys.stderr)
 
@@ -644,7 +644,7 @@ def main():
             "runbook_url": "https://wiki.company.com/runbooks/high-cpu"
         }
     ]
-    
+
     agent = LinearMonitoringAgent()
     agent.process_alerts(alerts)
 
@@ -668,12 +668,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Setup linctl
       run: |
         curl -L https://github.com/your-org/linctl/releases/latest/download/linctl-linux-amd64 -o /usr/local/bin/linctl
         chmod +x /usr/local/bin/linctl
-    
+
     - name: Configure Linear OAuth
       env:
         LINEAR_CLIENT_ID: ${{ secrets.LINEAR_CLIENT_ID }}
@@ -683,7 +683,7 @@ jobs:
       run: |
         # Verify authentication
         linctl auth status --json
-    
+
     - name: Create deployment issue
       if: github.ref == 'refs/heads/main'
       env:
@@ -696,9 +696,9 @@ jobs:
           --team "OPS" \
           --description "Automated deployment from commit ${{ github.sha }}" \
           --json | jq -r '.data.issueCreate.issue.id')
-        
+
         echo "DEPLOYMENT_ISSUE_ID=$ISSUE_ID" >> $GITHUB_ENV
-    
+
     - name: Update deployment status
       if: success() && github.ref == 'refs/heads/main'
       env:
@@ -709,7 +709,7 @@ jobs:
         linctl comment create "$DEPLOYMENT_ISSUE_ID" \
           --body "✅ Deployment completed successfully" \
           --json
-        
+
         linctl issue update "$DEPLOYMENT_ISSUE_ID" \
           --state "Done" \
           --json
@@ -731,7 +731,7 @@ Linear API has rate limits that agents should respect:
 rate_limited_command() {
     local cmd="$1"
     local delay="${2:-1}"  # Default 1 second delay
-    
+
     $cmd
     sleep "$delay"
 }
@@ -739,7 +739,7 @@ rate_limited_command() {
 # Batch operations to reduce API calls
 batch_issue_creation() {
     local issues=("$@")
-    
+
     for issue in "${issues[@]}"; do
         rate_limited_command "linctl issue create --title '$issue' --team 'ENG' --json" 2
     done
@@ -808,13 +808,13 @@ def secure_token_handling():
     if os.path.exists(token_file):
         # Set file permissions to 600 (owner read/write only)
         os.chmod(token_file, stat.S_IRUSR | stat.S_IWUSR)
-    
+
     # Use temporary files for sensitive operations
     with tempfile.NamedTemporaryFile(mode='w', delete=True) as temp_file:
         # Write sensitive data to temporary file
         temp_file.write("sensitive data")
         temp_file.flush()
-        
+
         # Use the temporary file
         # File is automatically deleted when context exits
 ```
@@ -877,13 +877,13 @@ fi
 
 debug_agent() {
     echo "=== Agent Debug Information ==="
-    
+
     echo "Environment Variables:"
     env | grep LINEAR_ | sed 's/CLIENT_SECRET=.*/CLIENT_SECRET=***HIDDEN***/'
-    
+
     echo -e "\nAuthentication Status:"
     linctl auth status --json | jq '.'
-    
+
     echo -e "\nToken Information:"
     if [ -f ~/.config/linctl/token.json ]; then
         echo "Token file exists"
@@ -891,10 +891,10 @@ debug_agent() {
     else
         echo "No token file found"
     fi
-    
+
     echo -e "\nNetwork Connectivity:"
     curl -s -o /dev/null -w "%{http_code}" https://api.linear.app/graphql || echo "Connection failed"
-    
+
     echo -e "\nLinctl Version:"
     linctl --version 2>/dev/null || echo "Version not available"
 }

@@ -22,7 +22,7 @@
 1. **Personal API Keys** (recommended for CLI)
    - Header: `Authorization: <API_KEY>`
    - Created in "Security & access" settings
-   
+
 2. **OAuth 2.0** (for web applications)
    - Header: `Authorization: Bearer <ACCESS_TOKEN>`
    - Requires app registration and token exchange

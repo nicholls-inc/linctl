@@ -155,7 +155,7 @@ func TestTokenInfo(t *testing.T) {
 	}
 
 	info := validToken.GetTokenInfo()
-	
+
 	if !info["valid"].(bool) {
 		t.Error("Token should be reported as valid")
 	}
@@ -179,7 +179,7 @@ func TestTokenInfo(t *testing.T) {
 	}
 
 	expiredInfo := expiredToken.GetTokenInfo()
-	
+
 	if expiredInfo["valid"].(bool) {
 		t.Error("Expired token should be reported as invalid")
 	}

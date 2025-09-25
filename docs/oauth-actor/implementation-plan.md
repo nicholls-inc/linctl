@@ -178,7 +178,7 @@ Add actor authorization flags to relevant commands:
 # Issue creation with actor attribution
 linctl issue create --title "Bug fix" --team ENG --actor "AI Agent" --avatar-url "https://example.com/agent.png"
 
-# Comment creation with actor attribution  
+# Comment creation with actor attribution
 linctl comment create LIN-123 --body "Working on this" --actor "AI Agent"
 ```
 
@@ -245,7 +245,7 @@ $ linctl auth status
 🔑 Token expires: 2024-01-15 10:30 UTC (in 23 hours)
 📋 Scopes: read, write, issues:create, comments:create
 
-# API key authenticated  
+# API key authenticated
 $ linctl auth status
 ✅ Authenticated via API Key
 👤 User: John Doe (john@example.com)
@@ -300,7 +300,7 @@ $ linctl issue list
 💡 Please re-authenticate: linctl auth login --oauth
 
 # No authentication
-$ linctl issue list  
+$ linctl issue list
 ❌ Not authenticated
 💡 Set up authentication: linctl auth login --oauth (recommended) or linctl auth login
 
@@ -348,7 +348,7 @@ func GetAuthStatus() (*AuthStatus, error) {
 #### 4.8 Automatic Priority System (Already Implemented)
 The existing `GetAuthHeader()` function already implements smart priority:
 1. **OAuth with automatic refresh** (highest priority)
-2. **Stored OAuth token** (medium priority)  
+2. **Stored OAuth token** (medium priority)
 3. **API key fallback** (lowest priority)
 4. **Clear error** with guidance (no auth found)
 
@@ -369,7 +369,7 @@ The existing `GetAuthHeader()` function already implements smart priority:
 - **Alternative**: Clear status reporting shows current method
 - **Benefit**: Focus on user experience over technical complexity
 
-**Success Criteria**: 
+**Success Criteria**:
 - Clear authentication status with helpful guidance
 - Seamless OAuth setup experience
 - Automatic token management with graceful fallback
@@ -506,7 +506,7 @@ Each phase includes:
 
 ### User Experience Risks
 - **Authentication Confusion**: Clear status reporting and automatic priority system
-- **Backward Compatibility**: Maintain existing workflows unchanged  
+- **Backward Compatibility**: Maintain existing workflows unchanged
 - **Agent Integration**: Thorough testing of automated workflows
 - **OAuth Setup Complexity**: Smart login flow with clear guidance
 

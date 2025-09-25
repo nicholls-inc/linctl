@@ -25,7 +25,7 @@ Fill in the application details:
 **Application Name**: `linctl CLI Tool`
 **Description**: `OAuth-enabled Linear CLI for automated operations and agent workflows`
 **Website URL**: `https://github.com/your-org/linctl` (optional)
-**Callback URLs**: 
+**Callback URLs**:
 - `http://localhost:8080/oauth/callback` (for local development)
 - `https://your-domain.com/oauth/callback` (for production, if needed)
 

@@ -222,7 +222,7 @@ func TestActorConfig(t *testing.T) {
 	// Save original environment
 	originalActor := os.Getenv("LINEAR_DEFAULT_ACTOR")
 	originalAvatarURL := os.Getenv("LINEAR_DEFAULT_AVATAR_URL")
-	
+
 	// Clean up after test
 	defer func() {
 		os.Setenv("LINEAR_DEFAULT_ACTOR", originalActor)
@@ -325,7 +325,7 @@ func TestGetEnvironmentStatusWithActor(t *testing.T) {
 	originalClientSecret := os.Getenv("LINEAR_CLIENT_SECRET")
 	originalActor := os.Getenv("LINEAR_DEFAULT_ACTOR")
 	originalAvatarURL := os.Getenv("LINEAR_DEFAULT_AVATAR_URL")
-	
+
 	// Clean up after test
 	defer func() {
 		os.Setenv("LINEAR_CLIENT_ID", originalClientID)

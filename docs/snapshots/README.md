@@ -100,7 +100,7 @@ Authorization: Bearer <ACCESS_TOKEN>
 
 ---
 
-**Last Updated**: July 13, 2025  
+**Last Updated**: July 13, 2025
 **Source**: https://linear.app/developers
 
 These snapshots provide offline reference material for Linear's API documentation. For the most current information, always refer to the official Linear developer documentation.

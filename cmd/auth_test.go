@@ -16,17 +16,17 @@ import (
 // Helper function to create isolated test environment for cmd tests
 func withIsolatedAuthEnvironment(t *testing.T, fn func()) {
 	t.Helper()
-	
+
 	// Save original environment variables
 	originalVars := map[string]string{
-		"LINEAR_CLIENT_ID":         os.Getenv("LINEAR_CLIENT_ID"),
-		"LINEAR_CLIENT_SECRET":     os.Getenv("LINEAR_CLIENT_SECRET"),
-		"LINEAR_BASE_URL":          os.Getenv("LINEAR_BASE_URL"),
-		"LINEAR_SCOPES":            os.Getenv("LINEAR_SCOPES"),
-		"LINEAR_DEFAULT_ACTOR":     os.Getenv("LINEAR_DEFAULT_ACTOR"),
+		"LINEAR_CLIENT_ID":          os.Getenv("LINEAR_CLIENT_ID"),
+		"LINEAR_CLIENT_SECRET":      os.Getenv("LINEAR_CLIENT_SECRET"),
+		"LINEAR_BASE_URL":           os.Getenv("LINEAR_BASE_URL"),
+		"LINEAR_SCOPES":             os.Getenv("LINEAR_SCOPES"),
+		"LINEAR_DEFAULT_ACTOR":      os.Getenv("LINEAR_DEFAULT_ACTOR"),
 		"LINEAR_DEFAULT_AVATAR_URL": os.Getenv("LINEAR_DEFAULT_AVATAR_URL"),
 	}
-	
+
 	// Clear OAuth environment to prevent interference
 	os.Unsetenv("LINEAR_CLIENT_ID")
 	os.Unsetenv("LINEAR_CLIENT_SECRET")
@@ -34,14 +34,14 @@ func withIsolatedAuthEnvironment(t *testing.T, fn func()) {
 	os.Unsetenv("LINEAR_SCOPES")
 	os.Unsetenv("LINEAR_DEFAULT_ACTOR")
 	os.Unsetenv("LINEAR_DEFAULT_AVATAR_URL")
-	
+
 	// Create temporary directory for test config files
 	tempDir := t.TempDir()
-	
+
 	// Override the config path for testing
 	originalHome := os.Getenv("HOME")
 	os.Setenv("HOME", tempDir)
-	
+
 	// Cleanup function
 	defer func() {
 		// Restore original HOME
@@ -50,7 +50,7 @@ func withIsolatedAuthEnvironment(t *testing.T, fn func()) {
 		} else {
 			os.Setenv("HOME", originalHome)
 		}
-		
+
 		// Restore original environment variables
 		for key, value := range originalVars {
 			if value == "" {
@@ -60,81 +60,82 @@ func withIsolatedAuthEnvironment(t *testing.T, fn func()) {
 			}
 		}
 	}()
-	
+
 	fn()
 }
 
 func TestAuthCommands_Integration(t *testing.T) {
 	withIsolatedAuthEnvironment(t, func() {
 
-	// Note: status_not_authenticated test removed because it calls os.Exit(1)
+		// Note: status_not_authenticated test removed because it calls os.Exit(1)
 
-	// Test that OAuth flag is available on login command
-	t.Run("login_oauth_flag_available", func(t *testing.T) {
-		flag := loginCmd.Flags().Lookup("oauth")
-		if flag == nil {
-			t.Error("Expected --oauth flag to be available on login command")
-		}
+		// Test that OAuth flag is available on login command
+		t.Run("login_oauth_flag_available", func(t *testing.T) {
+			flag := loginCmd.Flags().Lookup("oauth")
+			if flag == nil {
+				t.Error("Expected --oauth flag to be available on login command")
+				return
+			}
 
-		if flag.Usage != "Use OAuth authentication instead of API key" {
-			t.Errorf("Expected OAuth flag usage description, got %s", flag.Usage)
-		}
+			if flag.Usage != "Use OAuth authentication instead of API key" {
+				t.Errorf("Expected OAuth flag usage description, got %s", flag.Usage)
+			}
 
-		if flag.DefValue != "false" {
-			t.Errorf("Expected OAuth flag default value false, got %s", flag.DefValue)
-		}
-	})
+			if flag.DefValue != "false" {
+				t.Errorf("Expected OAuth flag default value false, got %s", flag.DefValue)
+			}
+		})
 
-	// Test help output includes OAuth information
-	t.Run("login_help_includes_oauth", func(t *testing.T) {
-		buf := &bytes.Buffer{}
-		loginCmd.SetOut(buf)
-		loginCmd.SetErr(buf)
+		// Test help output includes OAuth information
+		t.Run("login_help_includes_oauth", func(t *testing.T) {
+			buf := &bytes.Buffer{}
+			loginCmd.SetOut(buf)
+			loginCmd.SetErr(buf)
 
-		// Execute help
-		loginCmd.Help()
+			// Execute help
+			loginCmd.Help()
 
-		output := buf.String()
-		if !strings.Contains(output, "--oauth") {
-			t.Error("Expected help output to contain --oauth flag")
-		}
-		if !strings.Contains(output, "OAuth authentication") {
-			t.Error("Expected help output to mention OAuth authentication")
-		}
-	})
+			output := buf.String()
+			if !strings.Contains(output, "--oauth") {
+				t.Error("Expected help output to contain --oauth flag")
+			}
+			if !strings.Contains(output, "OAuth authentication") {
+				t.Error("Expected help output to mention OAuth authentication")
+			}
+		})
 
-	// Test auth command structure
-	t.Run("auth_command_structure", func(t *testing.T) {
-		// Verify auth command has expected subcommands
-		expectedSubcommands := []string{"login", "logout", "status"}
-		
-		for _, expectedCmd := range expectedSubcommands {
+		// Test auth command structure
+		t.Run("auth_command_structure", func(t *testing.T) {
+			// Verify auth command has expected subcommands
+			expectedSubcommands := []string{"login", "logout", "status"}
+
+			for _, expectedCmd := range expectedSubcommands {
+				found := false
+				for _, cmd := range authCmd.Commands() {
+					if cmd.Name() == expectedCmd {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected auth command to have %s subcommand", expectedCmd)
+				}
+			}
+		})
+
+		// Test whoami command exists as top-level command
+		t.Run("whoami_command_exists", func(t *testing.T) {
 			found := false
-			for _, cmd := range authCmd.Commands() {
-				if cmd.Name() == expectedCmd {
+			for _, cmd := range rootCmd.Commands() {
+				if cmd.Name() == "whoami" {
 					found = true
 					break
 				}
 			}
 			if !found {
-				t.Errorf("Expected auth command to have %s subcommand", expectedCmd)
+				t.Error("Expected whoami to be available as top-level command")
 			}
-		}
-	})
-
-	// Test whoami command exists as top-level command
-	t.Run("whoami_command_exists", func(t *testing.T) {
-		found := false
-		for _, cmd := range rootCmd.Commands() {
-			if cmd.Name() == "whoami" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Error("Expected whoami to be available as top-level command")
-		}
-	})
+		})
 	}) // Close withIsolatedAuthEnvironment
 }
 
@@ -145,26 +146,11 @@ func TestStatusCommand_WithAuthentication(t *testing.T) {
 		expectedMethod string
 	}{
 		{
-			name: "OAuth authentication",
-			config: auth.AuthConfig{
-				OAuthToken: "test-oauth-token",
-			},
-			expectedMethod: "oauth",
-		},
-		{
 			name: "API key authentication",
 			config: auth.AuthConfig{
 				APIKey: "test-api-key",
 			},
 			expectedMethod: "api_key",
-		},
-		{
-			name: "OAuth takes priority",
-			config: auth.AuthConfig{
-				APIKey:     "test-api-key",
-				OAuthToken: "test-oauth-token",
-			},
-			expectedMethod: "oauth",
 		},
 	}
 
@@ -200,12 +186,7 @@ func TestStatusCommand_WithAuthentication(t *testing.T) {
 				}
 
 				// Verify header format based on method
-				if tt.expectedMethod == "oauth" {
-					expectedHeader := "Bearer " + tt.config.OAuthToken
-					if header != expectedHeader {
-						t.Errorf("Expected OAuth header %s, got %s", expectedHeader, header)
-					}
-				} else if tt.expectedMethod == "api_key" {
+				if tt.expectedMethod == "api_key" {
 					if header != tt.config.APIKey {
 						t.Errorf("Expected API key header %s, got %s", tt.config.APIKey, header)
 					}

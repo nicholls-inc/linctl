@@ -21,16 +21,16 @@ run_test() {
     local test_name="$1"
     local command="$2"
     local expected_pattern="$3"  # Optional pattern to check in output
-    
+
     TESTS_RUN=$((TESTS_RUN + 1))
     echo -n "Testing: $test_name... "
-    
+
     # Run the command and capture output and exit code
     set +e  # Temporarily disable exit on error
     output=$(eval "$command" 2>&1)
     exit_code=$?
     set -e
-    
+
     if [ $exit_code -eq 0 ]; then
         # If an expected pattern is provided, check for it
         if [ -n "$expected_pattern" ]; then
@@ -104,7 +104,7 @@ run_test "project list" "go run main.go project list"
 run_test "project list (plaintext)" "go run main.go project list -p" "# Projects"
 run_test "project list (json)" "go run main.go project list -j" "\"id\""
 # Note: project list doesn't support team filter in the API
-# run_test "project list (with team filter)" "go run main.go project list --team $team_key" 
+# run_test "project list (with team filter)" "go run main.go project list --team $team_key"
 run_test "project list (state filter)" "go run main.go project list --state started"
 run_test "project list (time filter)" "go run main.go project list --newer-than 1_month_ago"
 
@@ -134,7 +134,7 @@ issue_id=$(echo "$issue_output" | grep -E -o '[A-Z]+-[0-9]+' | head -1)
 if [ -n "$issue_id" ]; then
     run_test "issue get" "go run main.go issue get $issue_id"
     run_test "issue get (plaintext)" "go run main.go issue get $issue_id -p" "# $issue_id"
-    
+
     # Test comment list for this issue
     echo -e "\n${YELLOW}Testing comment commands...${NC}"
     run_test "comment list" "go run main.go comment list $issue_id"

@@ -53,9 +53,9 @@ func NewRateLimiter(config RateLimitConfig, logger logging.Logger) *RateLimiter 
 	if logger == nil {
 		logger = logging.NewNoOpLogger()
 	}
-	
+
 	limiter := rate.NewLimiter(rate.Limit(config.RequestsPerSecond), config.Burst)
-	
+
 	return &RateLimiter{
 		limiter: limiter,
 		config:  config,
@@ -68,11 +68,11 @@ func (rl *RateLimiter) Wait(ctx context.Context) error {
 	if !rl.config.Enabled {
 		return nil
 	}
-	
+
 	start := time.Now()
 	err := rl.limiter.Wait(ctx)
 	waitTime := time.Since(start)
-	
+
 	if err != nil {
 		rl.logger.Error("Rate limiter wait failed",
 			logging.Error(err),
@@ -80,13 +80,13 @@ func (rl *RateLimiter) Wait(ctx context.Context) error {
 		)
 		return err
 	}
-	
+
 	if waitTime > 100*time.Millisecond {
 		rl.logger.Debug("Rate limiter applied delay",
 			logging.Duration("wait_time", waitTime),
 		)
 	}
-	
+
 	return nil
 }
 
@@ -95,13 +95,13 @@ func (rl *RateLimiter) Allow() bool {
 	if !rl.config.Enabled {
 		return true
 	}
-	
+
 	allowed := rl.limiter.Allow()
-	
+
 	if !allowed {
 		rl.logger.Debug("Request denied by rate limiter")
 	}
-	
+
 	return allowed
 }
 
@@ -110,14 +110,14 @@ func (rl *RateLimiter) UpdateFromResponse(resp *http.Response) {
 	if !rl.config.AdaptiveMode {
 		return
 	}
-	
+
 	rateInfo := rl.parseRateHeaders(resp)
 	if rateInfo == nil {
 		return
 	}
-	
+
 	rl.lastRateInfo = rateInfo
-	
+
 	// Adaptive rate limiting based on remaining quota
 	if rateInfo.Remaining > 0 {
 		// Calculate time until reset
@@ -125,26 +125,26 @@ func (rl *RateLimiter) UpdateFromResponse(resp *http.Response) {
 		if timeUntilReset > 0 {
 			// Calculate safe rate to avoid hitting the limit
 			safeRate := float64(rateInfo.Remaining) / timeUntilReset.Seconds()
-			
+
 			// Apply a safety margin (use 80% of calculated rate)
 			safeRate *= 0.8
-			
+
 			// Don't go below a minimum rate
 			minRate := 1.0
 			if safeRate < minRate {
 				safeRate = minRate
 			}
-			
+
 			// Don't exceed configured maximum
 			if safeRate > rl.config.RequestsPerSecond {
 				safeRate = rl.config.RequestsPerSecond
 			}
-			
+
 			// Update the limiter if the rate changed significantly
 			currentRate := float64(rl.limiter.Limit())
 			if abs(safeRate-currentRate)/currentRate > 0.1 { // 10% change threshold
 				rl.limiter.SetLimit(rate.Limit(safeRate))
-				
+
 				rl.logger.Debug("Adaptive rate limit updated",
 					logging.Int("remaining", rateInfo.Remaining),
 					logging.Int("limit", rateInfo.Limit),
@@ -155,7 +155,7 @@ func (rl *RateLimiter) UpdateFromResponse(resp *http.Response) {
 			}
 		}
 	}
-	
+
 	// Log rate limit status
 	rl.logger.Debug("Rate limit status",
 		logging.Int("limit", rateInfo.Limit),
@@ -172,18 +172,18 @@ func (rl *RateLimiter) parseRateHeaders(resp *http.Response) *LinearRateInfo {
 	remainingStr := resp.Header.Get("X-RateLimit-Remaining")
 	resetStr := resp.Header.Get("X-RateLimit-Reset")
 	usedStr := resp.Header.Get("X-RateLimit-Used")
-	
+
 	if limitStr == "" || remainingStr == "" {
 		// Try alternative header names
 		limitStr = resp.Header.Get("RateLimit-Limit")
 		remainingStr = resp.Header.Get("RateLimit-Remaining")
 		resetStr = resp.Header.Get("RateLimit-Reset")
 	}
-	
+
 	if limitStr == "" || remainingStr == "" {
 		return nil
 	}
-	
+
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
 		rl.logger.Warn("Failed to parse rate limit header",
@@ -193,7 +193,7 @@ func (rl *RateLimiter) parseRateHeaders(resp *http.Response) *LinearRateInfo {
 		)
 		return nil
 	}
-	
+
 	remaining, err := strconv.Atoi(remainingStr)
 	if err != nil {
 		rl.logger.Warn("Failed to parse rate limit header",
@@ -203,7 +203,7 @@ func (rl *RateLimiter) parseRateHeaders(resp *http.Response) *LinearRateInfo {
 		)
 		return nil
 	}
-	
+
 	var reset time.Time
 	if resetStr != "" {
 		if resetUnix, err := strconv.ParseInt(resetStr, 10, 64); err == nil {
@@ -215,14 +215,14 @@ func (rl *RateLimiter) parseRateHeaders(resp *http.Response) *LinearRateInfo {
 			}
 		}
 	}
-	
+
 	var used int
 	if usedStr != "" {
 		if parsedUsed, err := strconv.Atoi(usedStr); err == nil {
 			used = parsedUsed
 		}
 	}
-	
+
 	return &LinearRateInfo{
 		Limit:     limit,
 		Remaining: remaining,
@@ -239,7 +239,7 @@ func (rl *RateLimiter) GetStatus() map[string]interface{} {
 		"burst":               rl.limiter.Burst(),
 		"adaptive_mode":       rl.config.AdaptiveMode,
 	}
-	
+
 	if rl.lastRateInfo != nil {
 		status["linear_limit"] = rl.lastRateInfo.Limit
 		status["linear_remaining"] = rl.lastRateInfo.Remaining
@@ -248,7 +248,7 @@ func (rl *RateLimiter) GetStatus() map[string]interface{} {
 			status["linear_reset"] = rl.lastRateInfo.Reset.Format(time.RFC3339)
 		}
 	}
-	
+
 	return status
 }
 
@@ -256,7 +256,7 @@ func (rl *RateLimiter) GetStatus() map[string]interface{} {
 func (rl *RateLimiter) HandleRateLimitResponse(resp *http.Response) time.Duration {
 	// Update rate info from headers
 	rl.UpdateFromResponse(resp)
-	
+
 	// Check for Retry-After header
 	retryAfter := resp.Header.Get("Retry-After")
 	if retryAfter != "" {
@@ -268,7 +268,7 @@ func (rl *RateLimiter) HandleRateLimitResponse(resp *http.Response) time.Duratio
 			return delay
 		}
 	}
-	
+
 	// Use configured backoff delay
 	rl.logger.Warn("Rate limited by server, using default backoff",
 		logging.Duration("backoff_delay", rl.config.BackoffDelay),

@@ -47,7 +47,7 @@ func TestSanitizeInput(t *testing.T) {
 			expected: "",
 		},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result := SanitizeInput(test.input)
@@ -110,7 +110,7 @@ func TestValidateIssueID(t *testing.T) {
 			expectErr: true,
 		},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := ValidateIssueID(test.issueID)
@@ -176,7 +176,7 @@ func TestValidateTeamKey(t *testing.T) {
 			expectErr: true,
 		},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := ValidateTeamKey(test.teamKey)
@@ -227,7 +227,7 @@ func TestValidateTitle(t *testing.T) {
 			expectErr: false,
 		},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := ValidateTitle(test.title)
@@ -268,7 +268,7 @@ func TestValidateDescription(t *testing.T) {
 			expectErr:   false,
 		},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := ValidateDescription(test.description)
@@ -314,7 +314,7 @@ func TestValidateActorName(t *testing.T) {
 			expectErr: false,
 		},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := ValidateActorName(test.actor)
@@ -365,7 +365,7 @@ func TestValidateAvatarURL(t *testing.T) {
 			expectErr: false,
 		},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := ValidateAvatarURL(test.url)
@@ -411,7 +411,7 @@ func TestValidatePriority(t *testing.T) {
 			expectErr: true,
 		},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := ValidatePriority(test.priority)
@@ -436,17 +436,17 @@ func TestSanitizeAndValidateAll(t *testing.T) {
 		"priority":    2,
 		"other_field": "some value",
 	}
-	
+
 	sanitized, errors := SanitizeAndValidateAll(fields)
-	
+
 	if len(errors) > 0 {
 		t.Errorf("Expected no validation errors, got: %v", errors)
 	}
-	
+
 	if len(sanitized) != len(fields) {
 		t.Errorf("Expected %d sanitized fields, got %d", len(fields), len(sanitized))
 	}
-	
+
 	// Test with invalid data
 	invalidFields := map[string]interface{}{
 		"issue_id": "invalid-id",
@@ -454,13 +454,13 @@ func TestSanitizeAndValidateAll(t *testing.T) {
 		"title":    "", // Empty title
 		"priority": 10, // Invalid priority
 	}
-	
+
 	_, errors = SanitizeAndValidateAll(invalidFields)
-	
+
 	if len(errors) == 0 {
 		t.Error("Expected validation errors for invalid fields")
 	}
-	
+
 	// Should have errors for issue_id, team_key, title, and priority
 	if len(errors) < 4 {
 		t.Errorf("Expected at least 4 validation errors, got %d", len(errors))
@@ -499,7 +499,7 @@ func TestIsValidInput(t *testing.T) {
 			expected: false,
 		},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			result := IsValidInput(test.input)
@@ -516,7 +516,7 @@ func TestValidationError(t *testing.T) {
 		Value:   "test_value",
 		Message: "test message",
 	}
-	
+
 	expected := "validation error for field 'test_field': test message"
 	if err.Error() != expected {
 		t.Errorf("ValidationError.Error() = %q, expected %q", err.Error(), expected)

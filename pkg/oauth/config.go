@@ -145,7 +145,7 @@ func (c *Config) HasScope(scope string) bool {
 	if c == nil {
 		return false
 	}
-	
+
 	for _, s := range c.Scopes {
 		if s == scope {
 			return true
@@ -157,11 +157,11 @@ func (c *Config) HasScope(scope string) bool {
 // GetEnvironmentStatus returns information about environment variable configuration
 func GetEnvironmentStatus() map[string]interface{} {
 	status := map[string]interface{}{
-		"LINEAR_CLIENT_ID":         os.Getenv("LINEAR_CLIENT_ID") != "",
-		"LINEAR_CLIENT_SECRET":     os.Getenv("LINEAR_CLIENT_SECRET") != "",
-		"LINEAR_BASE_URL":          os.Getenv("LINEAR_BASE_URL"),
-		"LINEAR_SCOPES":            os.Getenv("LINEAR_SCOPES"),
-		"LINEAR_DEFAULT_ACTOR":     os.Getenv("LINEAR_DEFAULT_ACTOR"),
+		"LINEAR_CLIENT_ID":          os.Getenv("LINEAR_CLIENT_ID") != "",
+		"LINEAR_CLIENT_SECRET":      os.Getenv("LINEAR_CLIENT_SECRET") != "",
+		"LINEAR_BASE_URL":           os.Getenv("LINEAR_BASE_URL"),
+		"LINEAR_SCOPES":             os.Getenv("LINEAR_SCOPES"),
+		"LINEAR_DEFAULT_ACTOR":      os.Getenv("LINEAR_DEFAULT_ACTOR"),
 		"LINEAR_DEFAULT_AVATAR_URL": os.Getenv("LINEAR_DEFAULT_AVATAR_URL"),
 	}
 
@@ -219,11 +219,11 @@ func ValidateEnvironmentForAgent() error {
 func GetAgentConfiguration() map[string]interface{} {
 	config, _ := LoadFromEnvironment()
 	actorConfig := LoadActorFromEnvironment()
-	
+
 	result := map[string]interface{}{
-		"oauth_configured":    config != nil && config.IsComplete(),
-		"actor_configured":    actorConfig.IsConfigured(),
-		"environment_status":  GetEnvironmentStatus(),
+		"oauth_configured":   config != nil && config.IsComplete(),
+		"actor_configured":   actorConfig.IsConfigured(),
+		"environment_status": GetEnvironmentStatus(),
 	}
 
 	if config != nil && config.IsComplete() {

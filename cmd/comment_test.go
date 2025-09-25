@@ -10,53 +10,53 @@ import (
 
 func TestCommentCreateCommand_ActorFlags(t *testing.T) {
 	tests := []struct {
-		name           string
-		args           []string
-		expectActor    string
+		name            string
+		args            []string
+		expectActor     string
 		expectAvatarURL string
-		expectError    bool
+		expectError     bool
 	}{
 		{
-			name:           "no actor flags",
-			args:           []string{"create", "LIN-123", "--body", "Test comment"},
-			expectActor:    "",
+			name:            "no actor flags",
+			args:            []string{"create", "LIN-123", "--body", "Test comment"},
+			expectActor:     "",
 			expectAvatarURL: "",
-			expectError:    false,
+			expectError:     false,
 		},
 		{
-			name:           "actor flag only",
-			args:           []string{"create", "LIN-123", "--body", "Test comment", "--actor", "AI Agent"},
-			expectActor:    "AI Agent",
+			name:            "actor flag only",
+			args:            []string{"create", "LIN-123", "--body", "Test comment", "--actor", "AI Agent"},
+			expectActor:     "AI Agent",
 			expectAvatarURL: "",
-			expectError:    false,
+			expectError:     false,
 		},
 		{
-			name:           "avatar-url flag only",
-			args:           []string{"create", "LIN-123", "--body", "Test comment", "--avatar-url", "https://example.com/agent.png"},
-			expectActor:    "",
+			name:            "avatar-url flag only",
+			args:            []string{"create", "LIN-123", "--body", "Test comment", "--avatar-url", "https://example.com/agent.png"},
+			expectActor:     "",
 			expectAvatarURL: "https://example.com/agent.png",
-			expectError:    false,
+			expectError:     false,
 		},
 		{
-			name:           "both actor flags",
-			args:           []string{"create", "LIN-123", "--body", "Test comment", "--actor", "AI Agent", "--avatar-url", "https://example.com/agent.png"},
-			expectActor:    "AI Agent",
+			name:            "both actor flags",
+			args:            []string{"create", "LIN-123", "--body", "Test comment", "--actor", "AI Agent", "--avatar-url", "https://example.com/agent.png"},
+			expectActor:     "AI Agent",
 			expectAvatarURL: "https://example.com/agent.png",
-			expectError:    false,
+			expectError:     false,
 		},
 		{
-			name:           "actor with spaces",
-			args:           []string{"create", "LIN-123", "--body", "Test comment", "--actor", "AI Agent Bot"},
-			expectActor:    "AI Agent Bot",
+			name:            "actor with spaces",
+			args:            []string{"create", "LIN-123", "--body", "Test comment", "--actor", "AI Agent Bot"},
+			expectActor:     "AI Agent Bot",
 			expectAvatarURL: "",
-			expectError:    false,
+			expectError:     false,
 		},
 		{
-			name:           "long comment body with actor",
-			args:           []string{"create", "LIN-123", "--body", "This is a longer comment body that spans multiple words and includes various details about the issue.", "--actor", "AI Agent"},
-			expectActor:    "AI Agent",
+			name:            "long comment body with actor",
+			args:            []string{"create", "LIN-123", "--body", "This is a longer comment body that spans multiple words and includes various details about the issue.", "--actor", "AI Agent"},
+			expectActor:     "AI Agent",
 			expectAvatarURL: "",
-			expectError:    false,
+			expectError:     false,
 		},
 	}
 
@@ -132,7 +132,7 @@ func TestCommentCreateCommand_EnvironmentVariables(t *testing.T) {
 	// Save original environment
 	originalActor := os.Getenv("LINEAR_DEFAULT_ACTOR")
 	originalAvatarURL := os.Getenv("LINEAR_DEFAULT_AVATAR_URL")
-	
+
 	// Clean up after test
 	defer func() {
 		os.Setenv("LINEAR_DEFAULT_ACTOR", originalActor)
@@ -196,15 +196,15 @@ func TestCommentCreateCommand_EnvironmentVariables(t *testing.T) {
 			// would work correctly. Since we can't easily test the full command
 			// execution without mocking the API, we test the actor resolution
 			// logic directly through the utils package.
-			
+
 			// The actual command would call utils.ResolveActorParams(flagActor, flagAvatarURL)
 			// and get the expected results based on the environment and flag values
-			
+
 			// For now, we just verify the environment variables are set correctly
 			if os.Getenv("LINEAR_DEFAULT_ACTOR") != tt.envActor {
 				t.Errorf("Expected env actor '%s', got '%s'", tt.envActor, os.Getenv("LINEAR_DEFAULT_ACTOR"))
 			}
-			
+
 			if os.Getenv("LINEAR_DEFAULT_AVATAR_URL") != tt.envAvatarURL {
 				t.Errorf("Expected env avatar URL '%s', got '%s'", tt.envAvatarURL, os.Getenv("LINEAR_DEFAULT_AVATAR_URL"))
 			}
@@ -367,10 +367,10 @@ func TestCommentCommand_Examples(t *testing.T) {
 
 func TestCommentCreateCommand_IssueIDValidation(t *testing.T) {
 	tests := []struct {
-		name     string
-		args     []string
-		issueID  string
-		valid    bool
+		name    string
+		args    []string
+		issueID string
+		valid   bool
 	}{
 		{
 			name:    "valid Linear issue ID",

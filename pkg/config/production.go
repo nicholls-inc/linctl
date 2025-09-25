@@ -14,11 +14,11 @@ import (
 
 // ProductionConfig holds all production-ready configuration
 type ProductionConfig struct {
-	Retry     resilience.RetryConfig     `json:"retry"`
-	RateLimit ratelimit.RateLimitConfig  `json:"rate_limit"`
-	Logging   LoggingConfig              `json:"logging"`
-	Security  SecurityConfig             `json:"security"`
-	Metrics   MetricsConfig              `json:"metrics"`
+	Retry     resilience.RetryConfig    `json:"retry"`
+	RateLimit ratelimit.RateLimitConfig `json:"rate_limit"`
+	Logging   LoggingConfig             `json:"logging"`
+	Security  SecurityConfig            `json:"security"`
+	Metrics   MetricsConfig             `json:"metrics"`
 }
 
 // LoggingConfig configures logging behavior
@@ -49,61 +49,61 @@ func LoadProductionConfig() (*ProductionConfig, error) {
 		Security:  loadSecurityConfig(),
 		Metrics:   loadMetricsConfig(),
 	}
-	
+
 	return config, nil
 }
 
 // loadRetryConfig loads retry configuration from environment
 func loadRetryConfig() resilience.RetryConfig {
 	config := resilience.DefaultRetryConfig()
-	
+
 	if maxAttempts := getEnvInt("LINCTL_RETRY_MAX_ATTEMPTS", config.MaxAttempts); maxAttempts > 0 {
 		config.MaxAttempts = maxAttempts
 	}
-	
+
 	if initialDelay := getEnvDuration("LINCTL_RETRY_INITIAL_DELAY", config.InitialDelay); initialDelay > 0 {
 		config.InitialDelay = initialDelay
 	}
-	
+
 	if maxDelay := getEnvDuration("LINCTL_RETRY_MAX_DELAY", config.MaxDelay); maxDelay > 0 {
 		config.MaxDelay = maxDelay
 	}
-	
+
 	if multiplier := getEnvFloat("LINCTL_RETRY_MULTIPLIER", config.Multiplier); multiplier > 1.0 {
 		config.Multiplier = multiplier
 	}
-	
+
 	if jitter := getEnvBool("LINCTL_RETRY_JITTER", config.Jitter); jitter != config.Jitter {
 		config.Jitter = jitter
 	}
-	
+
 	return config
 }
 
 // loadRateLimitConfig loads rate limiting configuration from environment
 func loadRateLimitConfig() ratelimit.RateLimitConfig {
 	config := ratelimit.DefaultRateLimitConfig()
-	
+
 	if rps := getEnvFloat("LINCTL_RATE_LIMIT_RPS", config.RequestsPerSecond); rps > 0 {
 		config.RequestsPerSecond = rps
 	}
-	
+
 	if burst := getEnvInt("LINCTL_RATE_LIMIT_BURST", config.Burst); burst > 0 {
 		config.Burst = burst
 	}
-	
+
 	if enabled := getEnvBool("LINCTL_RATE_LIMIT_ENABLED", config.Enabled); enabled != config.Enabled {
 		config.Enabled = enabled
 	}
-	
+
 	if adaptive := getEnvBool("LINCTL_RATE_LIMIT_ADAPTIVE", config.AdaptiveMode); adaptive != config.AdaptiveMode {
 		config.AdaptiveMode = adaptive
 	}
-	
+
 	if backoff := getEnvDuration("LINCTL_RATE_LIMIT_BACKOFF", config.BackoffDelay); backoff > 0 {
 		config.BackoffDelay = backoff
 	}
-	
+
 	return config
 }
 
@@ -195,7 +195,7 @@ func (c *ProductionConfig) Validate() error {
 	if c.Retry.Multiplier <= 1.0 {
 		return fmt.Errorf("retry multiplier must be greater than 1.0")
 	}
-	
+
 	// Validate rate limit config
 	if c.RateLimit.RequestsPerSecond <= 0 {
 		return fmt.Errorf("rate_limit requests_per_second must be positive")
@@ -206,18 +206,18 @@ func (c *ProductionConfig) Validate() error {
 	if c.RateLimit.BackoffDelay <= 0 {
 		return fmt.Errorf("rate_limit backoff_delay must be positive")
 	}
-	
+
 	// Validate logging config
 	validLevels := []string{"debug", "info", "warn", "error"}
 	if !contains(validLevels, strings.ToLower(c.Logging.Level)) {
 		return fmt.Errorf("logging level must be one of: %v", validLevels)
 	}
-	
+
 	validFormats := []string{"text", "json"}
 	if !contains(validFormats, strings.ToLower(c.Logging.Format)) {
 		return fmt.Errorf("logging format must be one of: %v", validFormats)
 	}
-	
+
 	return nil
 }
 
@@ -246,23 +246,23 @@ func (c *ProductionConfig) PrintConfig(logger logging.Logger) {
 		logging.Duration("retry_max_delay", c.Retry.MaxDelay),
 		logging.String("retry_multiplier", fmt.Sprintf("%.1f", c.Retry.Multiplier)),
 		logging.Bool("retry_jitter", c.Retry.Jitter),
-		
+
 		// Rate limit config
 		logging.String("rate_limit_rps", fmt.Sprintf("%.1f", c.RateLimit.RequestsPerSecond)),
 		logging.Int("rate_limit_burst", c.RateLimit.Burst),
 		logging.Bool("rate_limit_enabled", c.RateLimit.Enabled),
 		logging.Bool("rate_limit_adaptive", c.RateLimit.AdaptiveMode),
 		logging.Duration("rate_limit_backoff", c.RateLimit.BackoffDelay),
-		
+
 		// Logging config
 		logging.String("log_level", c.Logging.Level),
 		logging.String("log_format", c.Logging.Format),
-		
+
 		// Security config
 		logging.Bool("encrypt_tokens", c.Security.EncryptTokens),
 		logging.Bool("audit_log", c.Security.AuditLog),
 		logging.Bool("validate_input", c.Security.ValidateInput),
-		
+
 		// Metrics config
 		logging.Bool("metrics_enabled", c.Metrics.Enabled),
 		logging.String("metrics_export_path", c.Metrics.ExportPath),

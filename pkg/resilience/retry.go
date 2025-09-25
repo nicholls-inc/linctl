@@ -49,7 +49,7 @@ func NewRetryableClient(client *http.Client, config RetryConfig, logger logging.
 	if logger == nil {
 		logger = logging.NewNoOpLogger()
 	}
-	
+
 	return &RetryableClient{
 		client: client,
 		config: config,
@@ -60,25 +60,25 @@ func NewRetryableClient(client *http.Client, config RetryConfig, logger logging.
 // DoWithRetry executes an HTTP request with retry logic
 func (r *RetryableClient) DoWithRetry(ctx context.Context, req *http.Request) (*http.Response, error) {
 	var lastErr error
-	
+
 	for attempt := 1; attempt <= r.config.MaxAttempts; attempt++ {
 		// Clone the request for each attempt
 		reqClone := req.Clone(ctx)
-		
+
 		r.logger.Debug("Attempting HTTP request",
 			logging.String("method", req.Method),
 			logging.String("url", req.URL.String()),
 			logging.Int("attempt", attempt),
 			logging.Int("max_attempts", r.config.MaxAttempts),
 		)
-		
+
 		start := time.Now()
 		resp, err := r.client.Do(reqClone)
 		duration := time.Since(start)
-		
+
 		if err != nil {
 			lastErr = err
-			
+
 			r.logger.Warn("HTTP request failed",
 				logging.String("method", req.Method),
 				logging.String("url", req.URL.String()),
@@ -86,7 +86,7 @@ func (r *RetryableClient) DoWithRetry(ctx context.Context, req *http.Request) (*
 				logging.Duration("duration", duration),
 				logging.Error(err),
 			)
-			
+
 			// Check if we should retry based on the error type
 			if !r.shouldRetryError(err) {
 				r.logger.Debug("Error is not retryable, giving up",
@@ -94,7 +94,7 @@ func (r *RetryableClient) DoWithRetry(ctx context.Context, req *http.Request) (*
 				)
 				return nil, err
 			}
-			
+
 			// Don't sleep after the last attempt
 			if attempt < r.config.MaxAttempts {
 				delay := r.calculateDelay(attempt)
@@ -102,7 +102,7 @@ func (r *RetryableClient) DoWithRetry(ctx context.Context, req *http.Request) (*
 					logging.Duration("delay", delay),
 					logging.Int("next_attempt", attempt+1),
 				)
-				
+
 				select {
 				case <-ctx.Done():
 					return nil, ctx.Err()
@@ -112,7 +112,7 @@ func (r *RetryableClient) DoWithRetry(ctx context.Context, req *http.Request) (*
 			}
 			continue
 		}
-		
+
 		r.logger.Debug("HTTP request completed",
 			logging.String("method", req.Method),
 			logging.String("url", req.URL.String()),
@@ -120,7 +120,7 @@ func (r *RetryableClient) DoWithRetry(ctx context.Context, req *http.Request) (*
 			logging.Int("status_code", resp.StatusCode),
 			logging.Duration("duration", duration),
 		)
-		
+
 		// Check if we should retry based on the status code
 		if r.shouldRetryStatus(resp.StatusCode) {
 			r.logger.Warn("HTTP request returned retryable status",
@@ -129,20 +129,20 @@ func (r *RetryableClient) DoWithRetry(ctx context.Context, req *http.Request) (*
 				logging.Int("attempt", attempt),
 				logging.Int("status_code", resp.StatusCode),
 			)
-			
+
 			// If this is the last attempt, return the response as-is
 			if attempt >= r.config.MaxAttempts {
 				return resp, nil
 			}
-			
+
 			resp.Body.Close() // Close the body before retrying
-			
+
 			delay := r.calculateDelay(attempt)
 			r.logger.Debug("Retrying after delay",
 				logging.Duration("delay", delay),
 				logging.Int("next_attempt", attempt+1),
 			)
-			
+
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
@@ -151,11 +151,11 @@ func (r *RetryableClient) DoWithRetry(ctx context.Context, req *http.Request) (*
 			}
 			continue
 		}
-		
+
 		// Success or non-retryable error
 		return resp, nil
 	}
-	
+
 	// All attempts exhausted
 	r.logger.Error("All retry attempts exhausted",
 		logging.String("method", req.Method),
@@ -163,7 +163,7 @@ func (r *RetryableClient) DoWithRetry(ctx context.Context, req *http.Request) (*
 		logging.Int("attempts", r.config.MaxAttempts),
 		logging.Error(lastErr),
 	)
-	
+
 	return nil, fmt.Errorf("request failed after %d attempts: %w", r.config.MaxAttempts, lastErr)
 }
 
@@ -173,7 +173,7 @@ func (r *RetryableClient) shouldRetryError(err error) bool {
 	if err == context.Canceled || err == context.DeadlineExceeded {
 		return false
 	}
-	
+
 	// URL errors (like parse errors) are not retryable
 	if _, ok := err.(*url.Error); ok {
 		// But network errors within URL errors might be retryable
@@ -181,7 +181,7 @@ func (r *RetryableClient) shouldRetryError(err error) bool {
 			return r.isNetworkError(urlErr.Err)
 		}
 	}
-	
+
 	// Network errors are retryable
 	return r.isNetworkError(err)
 }
@@ -192,22 +192,22 @@ func (r *RetryableClient) isNetworkError(err error) bool {
 	if _, ok := err.(*net.DNSError); ok {
 		return true
 	}
-	
+
 	// Connection errors
 	if _, ok := err.(*net.OpError); ok {
 		return true
 	}
-	
+
 	// Timeout errors
 	if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 		return true
 	}
-	
+
 	// Connection refused, connection reset, etc.
 	if err == syscall.ECONNREFUSED || err == syscall.ECONNRESET || err == syscall.ETIMEDOUT {
 		return true
 	}
-	
+
 	return false
 }
 
@@ -231,24 +231,24 @@ func (r *RetryableClient) shouldRetryStatus(statusCode int) bool {
 func (r *RetryableClient) calculateDelay(attempt int) time.Duration {
 	// Calculate exponential backoff
 	delay := float64(r.config.InitialDelay) * math.Pow(r.config.Multiplier, float64(attempt-1))
-	
+
 	// Apply maximum delay
 	if delay > float64(r.config.MaxDelay) {
 		delay = float64(r.config.MaxDelay)
 	}
-	
+
 	// Apply jitter if enabled
 	if r.config.Jitter {
 		// Add random jitter of ±25%
 		jitter := delay * 0.25 * (rand.Float64()*2 - 1)
 		delay += jitter
-		
+
 		// Ensure delay is not negative
 		if delay < 0 {
 			delay = float64(r.config.InitialDelay)
 		}
 	}
-	
+
 	return time.Duration(delay)
 }
 

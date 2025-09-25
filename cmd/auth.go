@@ -51,7 +51,7 @@ var loginCmd = &cobra.Command{
 		} else {
 			err = auth.Login(plaintext, jsonOut)
 		}
-		
+
 		if err != nil {
 			output.Error(fmt.Sprintf("Authentication failed: %v", err), plaintext, jsonOut)
 			os.Exit(1)
@@ -127,29 +127,29 @@ var statusCmd = &cobra.Command{
 		} else {
 			// Enhanced colorful output
 			fmt.Println(color.New(color.FgGreen).Sprint("✅ Authenticated"))
-			
+
 			// Show method with appropriate icon
 			methodIcon := "🔑"
 			if status.Method == "oauth" {
 				methodIcon = "🔐"
 			}
 			fmt.Printf("%s Method: %s\n", methodIcon, color.New(color.FgCyan).Sprint(status.Method))
-			
+
 			// User info
-			fmt.Printf("👤 User: %s (%s)\n", 
+			fmt.Printf("👤 User: %s (%s)\n",
 				color.New(color.FgCyan).Sprint(status.User.Name),
 				color.New(color.FgCyan).Sprint(status.User.Email))
-			
+
 			// Token expiry for OAuth
 			if status.TokenExpiry != nil {
 				fmt.Printf("🔑 Token expires: %s\n", color.New(color.FgYellow).Sprint(*status.TokenExpiry))
 			}
-			
+
 			// Scopes for OAuth
 			if len(status.Scopes) > 0 {
 				fmt.Printf("📋 Scopes: %s\n", color.New(color.FgCyan).Sprint(strings.Join(status.Scopes, ", ")))
 			}
-			
+
 			// Show suggestions if any
 			if len(status.Suggestions) > 0 {
 				fmt.Println()
@@ -248,7 +248,7 @@ var authAgentStatusCmd = &cobra.Command{
 		// Import agent package for this command
 		// Note: This would require importing the agent package
 		// For now, we'll provide a simplified version using existing auth functions
-		
+
 		status, err := auth.GetAuthStatus()
 		if err != nil {
 			if jsonOut {
@@ -264,19 +264,19 @@ var authAgentStatusCmd = &cobra.Command{
 
 		// Get OAuth token info for additional details
 		oauthInfo, _ := auth.GetOAuthTokenInfo()
-		
+
 		// Enhanced status for agents
 		agentStatus := map[string]interface{}{
-			"success":        status.Authenticated,
-			"authenticated":  status.Authenticated,
-			"method":         status.Method,
-			"user":           status.User,
+			"success":          status.Authenticated,
+			"authenticated":    status.Authenticated,
+			"method":           status.Method,
+			"user":             status.User,
 			"token_expires_at": status.TokenExpiry,
-			"scopes":         status.Scopes,
-			"suggestions":    status.Suggestions,
-			"environment":    status.Environment,
-			"oauth_info":     oauthInfo,
-			"timestamp":      time.Now().UTC().Format(time.RFC3339),
+			"scopes":           status.Scopes,
+			"suggestions":      status.Suggestions,
+			"environment":      status.Environment,
+			"oauth_info":       oauthInfo,
+			"timestamp":        time.Now().UTC().Format(time.RFC3339),
 		}
 
 		if jsonOut {
@@ -294,7 +294,7 @@ var authAgentStatusCmd = &cobra.Command{
 					fmt.Println(color.New(color.FgGreen).Sprint("✅ Agent Status: Ready"))
 					fmt.Printf("🔐 Method: %s\n", color.New(color.FgCyan).Sprint(status.Method))
 					if status.User != nil {
-						fmt.Printf("👤 User: %s (%s)\n", 
+						fmt.Printf("👤 User: %s (%s)\n",
 							color.New(color.FgCyan).Sprint(status.User.Name),
 							color.New(color.FgCyan).Sprint(status.User.Email))
 					}
@@ -306,7 +306,7 @@ var authAgentStatusCmd = &cobra.Command{
 					fmt.Println(color.New(color.FgRed).Sprint("❌ Agent Status: Not Ready"))
 				}
 			}
-			
+
 			// Show suggestions
 			for _, suggestion := range status.Suggestions {
 				if plaintext {

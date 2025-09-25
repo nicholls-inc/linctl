@@ -10,46 +10,46 @@ import (
 
 func TestIssueCreateCommand_ActorFlags(t *testing.T) {
 	tests := []struct {
-		name           string
-		args           []string
-		expectActor    string
+		name            string
+		args            []string
+		expectActor     string
 		expectAvatarURL string
-		expectError    bool
+		expectError     bool
 	}{
 		{
-			name:           "no actor flags",
-			args:           []string{"create", "--title", "Test Issue", "--team", "ENG"},
-			expectActor:    "",
+			name:            "no actor flags",
+			args:            []string{"create", "--title", "Test Issue", "--team", "ENG"},
+			expectActor:     "",
 			expectAvatarURL: "",
-			expectError:    false,
+			expectError:     false,
 		},
 		{
-			name:           "actor flag only",
-			args:           []string{"create", "--title", "Test Issue", "--team", "ENG", "--actor", "AI Agent"},
-			expectActor:    "AI Agent",
+			name:            "actor flag only",
+			args:            []string{"create", "--title", "Test Issue", "--team", "ENG", "--actor", "AI Agent"},
+			expectActor:     "AI Agent",
 			expectAvatarURL: "",
-			expectError:    false,
+			expectError:     false,
 		},
 		{
-			name:           "avatar-url flag only",
-			args:           []string{"create", "--title", "Test Issue", "--team", "ENG", "--avatar-url", "https://example.com/agent.png"},
-			expectActor:    "",
+			name:            "avatar-url flag only",
+			args:            []string{"create", "--title", "Test Issue", "--team", "ENG", "--avatar-url", "https://example.com/agent.png"},
+			expectActor:     "",
 			expectAvatarURL: "https://example.com/agent.png",
-			expectError:    false,
+			expectError:     false,
 		},
 		{
-			name:           "both actor flags",
-			args:           []string{"create", "--title", "Test Issue", "--team", "ENG", "--actor", "AI Agent", "--avatar-url", "https://example.com/agent.png"},
-			expectActor:    "AI Agent",
+			name:            "both actor flags",
+			args:            []string{"create", "--title", "Test Issue", "--team", "ENG", "--actor", "AI Agent", "--avatar-url", "https://example.com/agent.png"},
+			expectActor:     "AI Agent",
 			expectAvatarURL: "https://example.com/agent.png",
-			expectError:    false,
+			expectError:     false,
 		},
 		{
-			name:           "actor with spaces",
-			args:           []string{"create", "--title", "Test Issue", "--team", "ENG", "--actor", "AI Agent Bot"},
-			expectActor:    "AI Agent Bot",
+			name:            "actor with spaces",
+			args:            []string{"create", "--title", "Test Issue", "--team", "ENG", "--actor", "AI Agent Bot"},
+			expectActor:     "AI Agent Bot",
 			expectAvatarURL: "",
-			expectError:    false,
+			expectError:     false,
 		},
 	}
 
@@ -131,7 +131,7 @@ func TestIssueCreateCommand_EnvironmentVariables(t *testing.T) {
 	// Save original environment
 	originalActor := os.Getenv("LINEAR_DEFAULT_ACTOR")
 	originalAvatarURL := os.Getenv("LINEAR_DEFAULT_AVATAR_URL")
-	
+
 	// Clean up after test
 	defer func() {
 		os.Setenv("LINEAR_DEFAULT_ACTOR", originalActor)
@@ -195,19 +195,19 @@ func TestIssueCreateCommand_EnvironmentVariables(t *testing.T) {
 			// would work correctly. Since we can't easily test the full command
 			// execution without mocking the API, we test the actor resolution
 			// logic directly through the utils package.
-			
+
 			// Import the utils package functionality
 			// This is tested more thoroughly in the utils package tests,
 			// but we verify the integration here
-			
+
 			// The actual command would call utils.ResolveActorParams(flagActor, flagAvatarURL)
 			// and get the expected results based on the environment and flag values
-			
+
 			// For now, we just verify the environment variables are set correctly
 			if os.Getenv("LINEAR_DEFAULT_ACTOR") != tt.envActor {
 				t.Errorf("Expected env actor '%s', got '%s'", tt.envActor, os.Getenv("LINEAR_DEFAULT_ACTOR"))
 			}
-			
+
 			if os.Getenv("LINEAR_DEFAULT_AVATAR_URL") != tt.envAvatarURL {
 				t.Errorf("Expected env avatar URL '%s', got '%s'", tt.envAvatarURL, os.Getenv("LINEAR_DEFAULT_AVATAR_URL"))
 			}

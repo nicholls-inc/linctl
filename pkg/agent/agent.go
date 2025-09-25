@@ -119,7 +119,7 @@ func ValidateAgentEnvironment() *AgentResponse {
 	}
 	response.Metadata["auth_method"] = authStatus.Method
 	response.Metadata["oauth_configured"] = authStatus.Method == "oauth"
-	
+
 	// Add actor configuration status
 	actorConfig := oauth.LoadActorFromEnvironment()
 	response.Metadata["actor_configured"] = actorConfig.IsConfigured()
@@ -143,8 +143,8 @@ func GetAgentStatus() *AgentResponse {
 	if err != nil {
 		response.Success = false
 		response.Error = &AgentError{
-			Code:    "AUTH_STATUS_ERROR",
-			Message: err.Error(),
+			Code:      "AUTH_STATUS_ERROR",
+			Message:   err.Error(),
 			Retryable: true,
 		}
 		return response
@@ -152,7 +152,7 @@ func GetAgentStatus() *AgentResponse {
 
 	// Get OAuth configuration
 	oauthConfig := oauth.GetAgentConfiguration()
-	
+
 	// Get agent configuration
 	agentConfig := LoadAgentConfig()
 
@@ -272,12 +272,12 @@ func getBoolEnv(key string, defaultValue bool) bool {
 	if value == "" {
 		return defaultValue
 	}
-	
+
 	boolValue, err := strconv.ParseBool(value)
 	if err != nil {
 		return defaultValue
 	}
-	
+
 	return boolValue
 }
 
@@ -286,12 +286,12 @@ func getIntEnv(key string, defaultValue int) int {
 	if value == "" {
 		return defaultValue
 	}
-	
+
 	intValue, err := strconv.Atoi(value)
 	if err != nil {
 		return defaultValue
 	}
-	
+
 	return intValue
 }
 
@@ -299,9 +299,9 @@ func isRetryableError(err error) bool {
 	if err == nil {
 		return false
 	}
-	
+
 	errStr := strings.ToLower(err.Error())
-	
+
 	// Network-related errors are typically retryable
 	retryablePatterns := []string{
 		"timeout",
@@ -313,25 +313,25 @@ func isRetryableError(err error) bool {
 		"502",
 		"500",
 	}
-	
+
 	for _, pattern := range retryablePatterns {
 		if strings.Contains(errStr, pattern) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
 func getEnvironmentSummary() map[string]interface{} {
 	return map[string]interface{}{
-		"LINEAR_CLIENT_ID":         os.Getenv("LINEAR_CLIENT_ID") != "",
-		"LINEAR_CLIENT_SECRET":     os.Getenv("LINEAR_CLIENT_SECRET") != "",
-		"LINEAR_DEFAULT_ACTOR":     os.Getenv("LINEAR_DEFAULT_ACTOR"),
+		"LINEAR_CLIENT_ID":          os.Getenv("LINEAR_CLIENT_ID") != "",
+		"LINEAR_CLIENT_SECRET":      os.Getenv("LINEAR_CLIENT_SECRET") != "",
+		"LINEAR_DEFAULT_ACTOR":      os.Getenv("LINEAR_DEFAULT_ACTOR"),
 		"LINEAR_DEFAULT_AVATAR_URL": os.Getenv("LINEAR_DEFAULT_AVATAR_URL"),
-		"LINEAR_AGENT_SILENT":      getBoolEnv("LINEAR_AGENT_SILENT", false),
-		"LINEAR_AGENT_JSON":        getBoolEnv("LINEAR_AGENT_JSON", false),
-		"LINEAR_AGENT_TIMEOUT":     getIntEnv("LINEAR_AGENT_TIMEOUT", 30),
+		"LINEAR_AGENT_SILENT":       getBoolEnv("LINEAR_AGENT_SILENT", false),
+		"LINEAR_AGENT_JSON":         getBoolEnv("LINEAR_AGENT_JSON", false),
+		"LINEAR_AGENT_TIMEOUT":      getIntEnv("LINEAR_AGENT_TIMEOUT", 30),
 	}
 }
 
@@ -344,7 +344,7 @@ type ActorOptions struct {
 // ResolveActorOptions resolves actor options using provided values or environment defaults
 func ResolveActorOptions(providedActor, providedAvatarURL string) *ActorOptions {
 	actorConfig := oauth.LoadActorFromEnvironment()
-	
+
 	return &ActorOptions{
 		Actor:     actorConfig.GetActor(providedActor),
 		AvatarURL: actorConfig.GetAvatarURL(providedAvatarURL),
@@ -354,14 +354,14 @@ func ResolveActorOptions(providedActor, providedAvatarURL string) *ActorOptions 
 // ValidateActorOptions validates actor options and provides suggestions
 func ValidateActorOptions(options *ActorOptions) []string {
 	var suggestions []string
-	
+
 	if options.Actor == "" {
 		suggestions = append(suggestions, "Consider setting LINEAR_DEFAULT_ACTOR environment variable for consistent attribution")
 	}
-	
+
 	if options.AvatarURL == "" {
 		suggestions = append(suggestions, "Consider setting LINEAR_DEFAULT_AVATAR_URL environment variable for visual identification")
 	}
-	
+
 	return suggestions
 }
