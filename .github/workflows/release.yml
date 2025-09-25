@@ -1,5 +1,12 @@
 name: Release linctl
 
+# This workflow uses release-please to automate releases
+# IMPORTANT: GitHub Actions must be permitted to create pull requests
+# Go to Settings → Actions → General → Workflow permissions
+# - Select "Read and write permissions"
+# - Check "Allow GitHub Actions to create and approve pull requests"
+# Alternatively, create a RELEASE_PLEASE_TOKEN secret with repo scope
+
 on:
   push:
     branches:
@@ -23,6 +30,7 @@ jobs:
         with:
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
   build-and-release:
     runs-on: ubuntu-latest
