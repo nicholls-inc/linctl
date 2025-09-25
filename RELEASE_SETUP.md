@@ -1,6 +1,6 @@
 # Release-Please Setup Guide
 
-This repository uses [release-please](https://github.com/googleapis/release-please) for automated releases. This guide explains how to configure the necessary permissions.
+This repository uses [release-please](https://github.com/googleapis/release-please) for automated releases via the [googleapis/release-please-action](https://github.com/googleapis/release-please-action). This guide explains how to configure the necessary permissions.
 
 ## GitHub Actions Permission Error
 
