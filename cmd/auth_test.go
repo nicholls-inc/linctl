@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dorkitude/linctl/pkg/auth"
+	"github.com/nicholls-inc/linctl/pkg/auth"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

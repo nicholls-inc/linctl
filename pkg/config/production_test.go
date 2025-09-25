@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dorkitude/linctl/pkg/logging"
+	"github.com/nicholls-inc/linctl/pkg/logging"
 )
 
 func TestLoadProductionConfig(t *testing.T) {

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dorkitude/linctl/pkg/agent"
-	"github.com/dorkitude/linctl/pkg/auth"
-	"github.com/dorkitude/linctl/pkg/oauth"
-	"github.com/dorkitude/linctl/pkg/output"
 	"github.com/fatih/color"
+	"github.com/nicholls-inc/linctl/pkg/agent"
+	"github.com/nicholls-inc/linctl/pkg/auth"
+	"github.com/nicholls-inc/linctl/pkg/oauth"
+	"github.com/nicholls-inc/linctl/pkg/output"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

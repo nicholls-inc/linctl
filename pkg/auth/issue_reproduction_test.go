@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dorkitude/linctl/pkg/api"
+	"github.com/nicholls-inc/linctl/pkg/api"
 )
 
 // TestOriginalIssueReproduction reproduces the exact scenario from the original issue:

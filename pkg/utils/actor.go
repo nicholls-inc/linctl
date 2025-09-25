@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/dorkitude/linctl/pkg/oauth"
+	"github.com/nicholls-inc/linctl/pkg/oauth"
 )
 
 // ActorParams represents actor attribution parameters

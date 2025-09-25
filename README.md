@@ -41,7 +41,7 @@ linctl docs      # Render the README.md
 
 ### From Source
 ```bash
-git clone https://github.com/dorkitude/linctl.git
+git clone https://github.com/nicholls-inc/linctl.git
 cd linctl
 make deps        # Install dependencies
 make build       # Build the binary
@@ -51,7 +51,7 @@ linctl docs      # Render the README.md
 
 ### For Development
 ```bash
-git clone https://github.com/dorkitude/linctl.git
+git clone https://github.com/nicholls-inc/linctl.git
 cd linctl
 make deps        # Install dependencies
 go run main.go   # Run directly without building
@@ -729,8 +729,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## 🔗 Links
 
 - [Linear API Documentation](https://developers.linear.app/)
-- [GitHub Repository](https://github.com/dorkitude/linctl)
-- [Issue Tracker](https://github.com/dorkitude/linctl/issues)
+- [GitHub Repository](https://github.com/nicholls-inc/linctl)
+- [Issue Tracker](https://github.com/nicholls-inc/linctl/issues)
 
 ---
 

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dorkitude/linctl/pkg/auth"
-	"github.com/dorkitude/linctl/pkg/oauth"
+	"github.com/nicholls-inc/linctl/pkg/auth"
+	"github.com/nicholls-inc/linctl/pkg/oauth"
 )
 
 // AgentConfig represents configuration optimized for agent workflows
