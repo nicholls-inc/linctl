@@ -15,7 +15,7 @@ class Linctl < Formula
   test do
     # Test version output
     assert_match "linctl version #{version}", shell_output("#{bin}/linctl --version")
-    
+
     # Test help command
     assert_match "A comprehensive CLI tool for Linear", shell_output("#{bin}/linctl --help")
   end

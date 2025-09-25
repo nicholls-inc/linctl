@@ -37,7 +37,7 @@ func TestNewOAuthClient(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := NewOAuthClient(tt.clientID, tt.clientSecret, tt.baseURL)
-			
+
 			if client.clientID != tt.clientID {
 				t.Errorf("Expected clientID %s, got %s", tt.clientID, client.clientID)
 			}
@@ -336,7 +336,7 @@ func TestOAuthClient_ContextCancellation(t *testing.T) {
 	defer server.Close()
 
 	client := NewOAuthClient("test-client-id", "test-client-secret", server.URL)
-	
+
 	// Create context that cancels immediately
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -395,7 +395,7 @@ func TestNewOAuthClientFromConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client, err := NewOAuthClientFromConfig(tt.config)
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Fatal("Expected error but got none")
@@ -405,31 +405,31 @@ func TestNewOAuthClientFromConfig(t *testing.T) {
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
-			
+
 			if client == nil {
 				t.Fatal("Expected client to be created")
 			}
-			
+
 			if client.clientID != tt.config.ClientID {
 				t.Errorf("Expected client ID '%s', got '%s'", tt.config.ClientID, client.clientID)
 			}
-			
+
 			if client.clientSecret != tt.config.ClientSecret {
 				t.Errorf("Expected client secret '%s', got '%s'", tt.config.ClientSecret, client.clientSecret)
 			}
-			
+
 			if client.baseURL != tt.config.BaseURL {
 				t.Errorf("Expected base URL '%s', got '%s'", tt.config.BaseURL, client.baseURL)
 			}
-			
+
 			if client.tokenStore == nil {
 				t.Error("Expected token store to be initialized")
 			}
-			
+
 			if client.config == nil {
 				t.Error("Expected config to be stored")
 			}
@@ -440,7 +440,7 @@ func TestNewOAuthClientFromConfig(t *testing.T) {
 func TestOAuthClient_GetValidToken(t *testing.T) {
 	// Create a temporary directory for token storage
 	tempDir := t.TempDir()
-	
+
 	tests := []struct {
 		name           string
 		setupToken     *TokenResponse
@@ -478,8 +478,8 @@ func TestOAuthClient_GetValidToken(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "no stored token - get new token",
-			setupToken:  nil,
+			name:         "no stored token - get new token",
+			setupToken:   nil,
 			tokenExpired: false,
 			serverResponse: &TokenResponse{
 				AccessToken: "fresh-token",
@@ -520,7 +520,7 @@ func TestOAuthClient_GetValidToken(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to setup test token: %v", err)
 				}
-				
+
 				if tt.tokenExpired {
 					// Wait a bit more to ensure expiry
 					time.Sleep(10 * time.Millisecond)
@@ -566,7 +566,7 @@ func TestOAuthClient_GetValidToken(t *testing.T) {
 
 func TestOAuthClient_RefreshToken(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	tests := []struct {
 		name           string
 		serverResponse *TokenResponse
@@ -584,10 +584,10 @@ func TestOAuthClient_RefreshToken(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "server error",
+			name:           "server error",
 			serverResponse: nil,
-			expectError: true,
-			errorMsg:    "failed to refresh token",
+			expectError:    true,
+			errorMsg:       "failed to refresh token",
 		},
 	}
 
@@ -649,7 +649,7 @@ func TestOAuthClient_RefreshToken(t *testing.T) {
 
 func TestOAuthClient_GetStoredTokenInfo(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	tests := []struct {
 		name        string
 		setupToken  *TokenResponse
@@ -696,11 +696,11 @@ func TestOAuthClient_GetStoredTokenInfo(t *testing.T) {
 				if valid, ok := info["valid"].(bool); !ok || !valid {
 					t.Error("Expected token to be reported as valid")
 				}
-				
+
 				if _, ok := info["expires_at"]; !ok {
 					t.Error("Expected expires_at field in token info")
 				}
-				
+
 				if scope, ok := info["scope"].(string); !ok || scope != tt.setupToken.Scope {
 					t.Errorf("Expected scope '%s', got '%v'", tt.setupToken.Scope, scope)
 				}
@@ -715,7 +715,7 @@ func TestOAuthClient_GetStoredTokenInfo(t *testing.T) {
 
 func TestOAuthClient_ClearStoredToken(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	client := NewOAuthClient("test-client-id", "test-client-secret", "https://api.linear.app")
 	client.tokenStore = NewTokenStoreWithPath(tempDir + "/test-token.json")
 
@@ -726,7 +726,7 @@ func TestOAuthClient_ClearStoredToken(t *testing.T) {
 		ExpiresIn:   3600,
 		Scope:       "read write",
 	}
-	
+
 	err := client.tokenStore.SaveToken(token)
 	if err != nil {
 		t.Fatalf("Failed to setup test token: %v", err)
@@ -751,7 +751,7 @@ func TestOAuthClient_ClearStoredToken(t *testing.T) {
 
 func TestOAuthClient_HasValidStoredToken(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	tests := []struct {
 		name        string
 		setupToken  *TokenResponse
@@ -795,7 +795,7 @@ func TestOAuthClient_HasValidStoredToken(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to setup test token: %v", err)
 				}
-				
+
 				if tt.setupToken.ExpiresIn == 1 {
 					// Wait for token to expire
 					time.Sleep(10 * time.Millisecond)

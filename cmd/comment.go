@@ -155,7 +155,7 @@ var commentCreateCmd = &cobra.Command{
 		body, _ := cmd.Flags().GetString("body")
 		actor, _ := cmd.Flags().GetString("actor")
 		avatarURL, _ := cmd.Flags().GetString("avatar-url")
-		
+
 		if body == "" {
 			output.Error("Comment body is required (--body)", plaintext, jsonOut)
 			os.Exit(1)

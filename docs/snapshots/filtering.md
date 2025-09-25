@@ -33,7 +33,7 @@ Filtering allows you to retrieve specific data by applying various conditions to
 ### Basic Priority Filtering
 ```graphql
 query HighPriorityIssues {
-  issues(filter: { 
+  issues(filter: {
     priority: { lte: 2, neq: 0 }
   }) {
     nodes {
@@ -46,7 +46,7 @@ query HighPriorityIssues {
 ### Filtering by Relationship
 ```graphql
 query AssignedIssues {
-  issues(filter: { 
+  issues(filter: {
     assignee: { email: { eq: "john@linear.app" } }
   }) {
     nodes {
@@ -59,12 +59,12 @@ query AssignedIssues {
 ### Complex Filtering
 ```graphql
 query Issues {
-  projects(filter: { 
-    lead: { name: { startsWith: "John" } } 
+  projects(filter: {
+    lead: { name: { startsWith: "John" } }
   }) {
     nodes {
-      issues(filter: { 
-        labels: { name: { in: ["Bug", "Defect"] } } 
+      issues(filter: {
+        labels: { name: { in: ["Bug", "Defect"] } }
       }) {
         nodes {
           id, title
@@ -81,7 +81,7 @@ Use relative time expressions for dynamic date filtering:
 
 ```graphql
 query RecentIssues {
-  issues(filter: { 
+  issues(filter: {
     createdAt: { gte: "-7d" }  # Issues created in last 7 days
   }) {
     nodes {
@@ -97,7 +97,7 @@ Check for null or non-null values:
 
 ```graphql
 query UnassignedIssues {
-  issues(filter: { 
+  issues(filter: {
     assignee: { null: true }
   }) {
     nodes {

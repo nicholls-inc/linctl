@@ -33,9 +33,9 @@ func NewOAuthClient(clientID, clientSecret, baseURL string) *OAuthClient {
 	if baseURL == "" {
 		baseURL = "https://api.linear.app"
 	}
-	
+
 	tokenStore, _ := NewTokenStore() // Ignore error, will handle gracefully
-	
+
 	return &OAuthClient{
 		clientID:     clientID,
 		clientSecret: clientSecret,
@@ -52,12 +52,12 @@ func NewOAuthClientFromConfig(config *Config) (*OAuthClient, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid OAuth config: %w", err)
 	}
-	
+
 	tokenStore, err := NewTokenStore()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create token store: %w", err)
 	}
-	
+
 	return &OAuthClient{
 		clientID:     config.ClientID,
 		clientSecret: config.ClientSecret,
@@ -180,27 +180,27 @@ func (c *OAuthClient) GetValidToken(ctx context.Context, scopes []string) (*Toke
 		// Fallback to direct token request if no token store
 		return c.GetAccessToken(ctx, scopes)
 	}
-	
+
 	// Try to load existing valid token
 	storedToken, err := c.tokenStore.GetValidToken()
 	if err == nil && storedToken != nil {
 		// Token is valid, return it
 		return storedToken.ToTokenResponse(), nil
 	}
-	
+
 	// Token is missing or expired, get a new one
 	newToken, err := c.GetAccessToken(ctx, scopes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get new access token: %w", err)
 	}
-	
+
 	// Save the new token
 	if saveErr := c.tokenStore.SaveToken(newToken); saveErr != nil {
 		// Log the error but don't fail the request
 		// The token is still valid for immediate use
 		logDebug("Warning: failed to save OAuth token to store: %v", saveErr)
 	}
-	
+
 	return newToken, nil
 }
 
@@ -210,18 +210,18 @@ func (c *OAuthClient) GetValidTokenWithRefresh(ctx context.Context, scopes []str
 		// Fallback to direct token request if no token store
 		return c.GetAccessToken(ctx, scopes)
 	}
-	
+
 	// Try to load existing valid token with reduced buffer (2 minutes instead of 5)
 	storedToken, err := c.tokenStore.GetValidTokenWithBuffer(2 * time.Minute)
 	if err == nil && storedToken != nil {
 		// Token is valid with buffer, return it
 		return storedToken.ToTokenResponse(), nil
 	}
-	
+
 	// Token is missing, expired, or will expire soon - get a new one with retry logic
 	const maxRetries = 3
 	var lastErr error
-	
+
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		newToken, err := c.GetAccessToken(ctx, scopes)
 		if err == nil {
@@ -232,7 +232,7 @@ func (c *OAuthClient) GetValidTokenWithRefresh(ctx context.Context, scopes []str
 			}
 			return newToken, nil
 		}
-		
+
 		lastErr = err
 		if attempt < maxRetries {
 			// Wait before retry with exponential backoff
@@ -240,7 +240,7 @@ func (c *OAuthClient) GetValidTokenWithRefresh(ctx context.Context, scopes []str
 			time.Sleep(waitTime)
 		}
 	}
-	
+
 	return nil, fmt.Errorf("failed to get new access token after %d attempts: %w", maxRetries, lastErr)
 }
 
@@ -248,7 +248,7 @@ func (c *OAuthClient) GetValidTokenWithRefresh(ctx context.Context, scopes []str
 func (c *OAuthClient) RefreshToken(ctx context.Context, scopes []string) (*TokenResponse, error) {
 	const maxRetries = 3
 	var lastErr error
-	
+
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		// Get a fresh token
 		newToken, err := c.GetAccessToken(ctx, scopes)
@@ -262,7 +262,7 @@ func (c *OAuthClient) RefreshToken(ctx context.Context, scopes []string) (*Token
 			}
 			return newToken, nil
 		}
-		
+
 		lastErr = err
 		if attempt < maxRetries {
 			// Wait before retry with exponential backoff
@@ -275,7 +275,7 @@ func (c *OAuthClient) RefreshToken(ctx context.Context, scopes []string) (*Token
 			}
 		}
 	}
-	
+
 	return nil, fmt.Errorf("failed to refresh token after %d attempts: %w", maxRetries, lastErr)
 }
 
@@ -286,7 +286,7 @@ func (c *OAuthClient) GetStoredTokenInfo() map[string]interface{} {
 			"error": "no token store available",
 		}
 	}
-	
+
 	storedToken, err := c.tokenStore.LoadToken()
 	if err != nil {
 		return map[string]interface{}{
@@ -294,7 +294,7 @@ func (c *OAuthClient) GetStoredTokenInfo() map[string]interface{} {
 			"valid": false,
 		}
 	}
-	
+
 	return storedToken.GetTokenInfo()
 }
 
@@ -303,7 +303,7 @@ func (c *OAuthClient) ClearStoredToken() error {
 	if c.tokenStore == nil {
 		return fmt.Errorf("no token store available")
 	}
-	
+
 	return c.tokenStore.ClearToken()
 }
 
@@ -312,7 +312,7 @@ func (c *OAuthClient) HasValidStoredToken() bool {
 	if c.tokenStore == nil {
 		return false
 	}
-	
+
 	return c.tokenStore.IsTokenValid()
 }
 
@@ -323,13 +323,13 @@ func (c *OAuthClient) ValidateAndRefreshToken(ctx context.Context, scopes []stri
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Validate the token by making a test API call
 	if err := c.ValidateToken(ctx, token.AccessToken); err != nil {
 		// Token validation failed, force refresh
 		return c.RefreshToken(ctx, scopes)
 	}
-	
+
 	return token, nil
 }
 
@@ -338,7 +338,7 @@ func IsTokenError(err error) bool {
 	if err == nil {
 		return false
 	}
-	
+
 	errStr := err.Error()
 	return strings.Contains(errStr, "401") ||
 		strings.Contains(errStr, "unauthorized") ||

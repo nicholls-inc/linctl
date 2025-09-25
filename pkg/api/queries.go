@@ -372,19 +372,19 @@ type ProjectLink struct {
 
 // IssueCreateInput represents input for creating an issue with actor support
 type IssueCreateInput struct {
-	Title          string  `json:"title"`
-	Description    *string `json:"description,omitempty"`
-	TeamID         string  `json:"teamId"`
-	AssigneeID     *string `json:"assigneeId,omitempty"`
-	Priority       *int    `json:"priority,omitempty"`
-	StateID        *string `json:"stateId,omitempty"`
+	Title          string   `json:"title"`
+	Description    *string  `json:"description,omitempty"`
+	TeamID         string   `json:"teamId"`
+	AssigneeID     *string  `json:"assigneeId,omitempty"`
+	Priority       *int     `json:"priority,omitempty"`
+	StateID        *string  `json:"stateId,omitempty"`
 	LabelIDs       []string `json:"labelIds,omitempty"`
-	ProjectID      *string `json:"projectId,omitempty"`
-	CycleID        *string `json:"cycleId,omitempty"`
+	ProjectID      *string  `json:"projectId,omitempty"`
+	CycleID        *string  `json:"cycleId,omitempty"`
 	Estimate       *float64 `json:"estimate,omitempty"`
-	DueDate        *string `json:"dueDate,omitempty"`
-	CreateAsUser   *string `json:"createAsUser,omitempty"`
-	DisplayIconURL *string `json:"displayIconUrl,omitempty"`
+	DueDate        *string  `json:"dueDate,omitempty"`
+	CreateAsUser   *string  `json:"createAsUser,omitempty"`
+	DisplayIconURL *string  `json:"displayIconUrl,omitempty"`
 }
 
 // CommentCreateInput represents input for creating a comment with actor support

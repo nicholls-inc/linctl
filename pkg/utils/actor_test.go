@@ -9,7 +9,7 @@ func TestResolveActorParams(t *testing.T) {
 	// Save original environment
 	originalActor := os.Getenv("LINEAR_DEFAULT_ACTOR")
 	originalAvatarURL := os.Getenv("LINEAR_DEFAULT_AVATAR_URL")
-	
+
 	// Clean up after test
 	defer func() {
 		os.Setenv("LINEAR_DEFAULT_ACTOR", originalActor)
@@ -17,74 +17,74 @@ func TestResolveActorParams(t *testing.T) {
 	}()
 
 	tests := []struct {
-		name             string
-		envActor         string
-		envAvatarURL     string
-		providedActor    string
+		name              string
+		envActor          string
+		envAvatarURL      string
+		providedActor     string
 		providedAvatarURL string
-		expectedActor    string
+		expectedActor     string
 		expectedAvatarURL string
-		hasActorInfo     bool
+		hasActorInfo      bool
 	}{
 		{
-			name:             "provided values take priority",
-			envActor:         "Env Agent",
-			envAvatarURL:     "https://env.com/avatar.png",
-			providedActor:    "Provided Agent",
+			name:              "provided values take priority",
+			envActor:          "Env Agent",
+			envAvatarURL:      "https://env.com/avatar.png",
+			providedActor:     "Provided Agent",
 			providedAvatarURL: "https://provided.com/avatar.png",
-			expectedActor:    "Provided Agent",
+			expectedActor:     "Provided Agent",
 			expectedAvatarURL: "https://provided.com/avatar.png",
-			hasActorInfo:     true,
+			hasActorInfo:      true,
 		},
 		{
-			name:             "fallback to environment",
-			envActor:         "Env Agent",
-			envAvatarURL:     "https://env.com/avatar.png",
-			providedActor:    "",
+			name:              "fallback to environment",
+			envActor:          "Env Agent",
+			envAvatarURL:      "https://env.com/avatar.png",
+			providedActor:     "",
 			providedAvatarURL: "",
-			expectedActor:    "Env Agent",
+			expectedActor:     "Env Agent",
 			expectedAvatarURL: "https://env.com/avatar.png",
-			hasActorInfo:     true,
+			hasActorInfo:      true,
 		},
 		{
-			name:             "mixed provided and environment",
-			envActor:         "Env Agent",
-			envAvatarURL:     "https://env.com/avatar.png",
-			providedActor:    "Provided Agent",
+			name:              "mixed provided and environment",
+			envActor:          "Env Agent",
+			envAvatarURL:      "https://env.com/avatar.png",
+			providedActor:     "Provided Agent",
 			providedAvatarURL: "",
-			expectedActor:    "Provided Agent",
+			expectedActor:     "Provided Agent",
 			expectedAvatarURL: "https://env.com/avatar.png",
-			hasActorInfo:     true,
+			hasActorInfo:      true,
 		},
 		{
-			name:             "no actor info available",
-			envActor:         "",
-			envAvatarURL:     "",
-			providedActor:    "",
+			name:              "no actor info available",
+			envActor:          "",
+			envAvatarURL:      "",
+			providedActor:     "",
 			providedAvatarURL: "",
-			expectedActor:    "",
+			expectedActor:     "",
 			expectedAvatarURL: "",
-			hasActorInfo:     false,
+			hasActorInfo:      false,
 		},
 		{
-			name:             "only actor provided",
-			envActor:         "",
-			envAvatarURL:     "",
-			providedActor:    "Solo Agent",
+			name:              "only actor provided",
+			envActor:          "",
+			envAvatarURL:      "",
+			providedActor:     "Solo Agent",
 			providedAvatarURL: "",
-			expectedActor:    "Solo Agent",
+			expectedActor:     "Solo Agent",
 			expectedAvatarURL: "",
-			hasActorInfo:     true,
+			hasActorInfo:      true,
 		},
 		{
-			name:             "only avatar URL provided",
-			envActor:         "",
-			envAvatarURL:     "",
-			providedActor:    "",
+			name:              "only avatar URL provided",
+			envActor:          "",
+			envAvatarURL:      "",
+			providedActor:     "",
 			providedAvatarURL: "https://solo.com/avatar.png",
-			expectedActor:    "",
+			expectedActor:     "",
 			expectedAvatarURL: "https://solo.com/avatar.png",
-			hasActorInfo:     true,
+			hasActorInfo:      true,
 		},
 	}
 

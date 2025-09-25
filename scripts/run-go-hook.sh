@@ -5,7 +5,31 @@ set -e
 # Runs Go commands across all relevant modules based on changed files
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Validate environment
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    echo -e "${RED}Error: Not in a git repository${NC}" >&2
+    exit 1
+fi
+
+# Ensure we have required tools
+if ! command -v go >/dev/null 2>&1; then
+    echo -e "${RED}Error: Go is not installed or not in PATH${NC}" >&2
+    exit 1
+fi
+
+# Check if timeout command is available, use fallback if not
+TIMEOUT_CMD="timeout"
+if ! command -v timeout >/dev/null 2>&1; then
+    # On macOS, timeout might not be available, use gtimeout if available
+    if command -v gtimeout >/dev/null 2>&1; then
+        TIMEOUT_CMD="gtimeout"
+    else
+        echo -e "${YELLOW}Warning: timeout command not available, commands may hang${NC}" >&2
+        TIMEOUT_CMD=""
+    fi
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -37,12 +61,21 @@ get_affected_modules() {
     local changed_files=("$@")
     local affected_modules=()
 
-    # Get all Go modules
+    # Get all Go modules (project-only)
     local all_modules
     mapfile -t all_modules < <(get_go_modules)
 
-    # For each module, check if any changed files are in that module
+    # Filter out any system paths that might have slipped through
+    local project_modules=()
     for module in "${all_modules[@]}"; do
+        # Only include modules that are relative paths or current directory
+        if [[ "$module" == "." ]] || [[ "$module" != /* ]]; then
+            project_modules+=("$module")
+        fi
+    done
+
+    # For each project module, check if any changed files are in that module
+    for module in "${project_modules[@]}"; do
         for file in "${changed_files[@]}"; do
             # Check if file is in this module's directory
             if [[ "$file" == "$module"/* ]] || [[ "$file" == "$module" ]]; then
@@ -52,9 +85,9 @@ get_affected_modules() {
         done
     done
 
-    # If no specific files provided or no modules matched, run on all modules
+    # If no specific files provided or no modules matched, run on all project modules
     if [[ ${#affected_modules[@]} -eq 0 ]]; then
-        affected_modules=("${all_modules[@]}")
+        affected_modules=("${project_modules[@]}")
     fi
 
     printf '%s\n' "${affected_modules[@]}"
@@ -66,8 +99,18 @@ run_go_fmt() {
 
     for module in "${modules[@]}"; do
         echo -e "${BLUE}Running go fmt in $module${NC}"
-        cd "$REPO_ROOT/$module"
-        if ! gofmt -s -w . || ! git diff --exit-code; then
+        local module_path="$REPO_ROOT"
+        if [[ "$module" != "." ]]; then
+            module_path="$REPO_ROOT/$module"
+        fi
+
+        cd "$module_path"
+        if [[ -n "$TIMEOUT_CMD" ]]; then
+            timeout_gofmt="$TIMEOUT_CMD 30s"
+        else
+            timeout_gofmt=""
+        fi
+        if ! $timeout_gofmt gofmt -s -w . || ! git diff --exit-code; then
             echo -e "${RED}go fmt failed or found formatting issues in $module${NC}"
             exit_code=1
         fi
@@ -82,8 +125,18 @@ run_go_vet() {
 
     for module in "${modules[@]}"; do
         echo -e "${BLUE}Running go vet in $module${NC}"
-        cd "$REPO_ROOT/$module"
-        if ! go vet ./...; then
+        local module_path="$REPO_ROOT"
+        if [[ "$module" != "." ]]; then
+            module_path="$REPO_ROOT/$module"
+        fi
+
+        cd "$module_path"
+        if [[ -n "$TIMEOUT_CMD" ]]; then
+            timeout_vet="$TIMEOUT_CMD 60s"
+        else
+            timeout_vet=""
+        fi
+        if ! $timeout_vet go vet ./...; then
             echo -e "${RED}go vet failed in $module${NC}"
             exit_code=1
         fi
@@ -98,10 +151,19 @@ run_go_build() {
 
     for module in "${modules[@]}"; do
         echo -e "${BLUE}Running go build in $module${NC}"
-        cd "$REPO_ROOT/$module"
+        local module_path="$REPO_ROOT"
+        if [[ "$module" != "." ]]; then
+            module_path="$REPO_ROOT/$module"
+        fi
 
+        cd "$module_path"
         # Try to build all packages, which handles both main packages and libraries
-        if ! go build ./... 2>/dev/null; then
+        if [[ -n "$TIMEOUT_CMD" ]]; then
+            timeout_build="$TIMEOUT_CMD 120s"
+        else
+            timeout_build=""
+        fi
+        if ! $timeout_build go build ./... 2>/dev/null; then
             echo -e "${RED}go build failed in $module${NC}"
             exit_code=1
         fi
@@ -116,8 +178,18 @@ run_go_mod_tidy() {
 
     for module in "${modules[@]}"; do
         echo -e "${BLUE}Running go mod tidy in $module${NC}"
-        cd "$REPO_ROOT/$module"
-        if ! go mod tidy || ! git diff --exit-code go.mod go.sum; then
+        local module_path="$REPO_ROOT"
+        if [[ "$module" != "." ]]; then
+            module_path="$REPO_ROOT/$module"
+        fi
+
+        cd "$module_path"
+        if [[ -n "$TIMEOUT_CMD" ]]; then
+            timeout_tidy="$TIMEOUT_CMD 60s"
+        else
+            timeout_tidy=""
+        fi
+        if ! $timeout_tidy go mod tidy || ! git diff --exit-code go.mod go.sum; then
             echo -e "${RED}go mod tidy failed or found changes in $module${NC}"
             exit_code=1
         fi
@@ -132,8 +204,18 @@ run_go_mod_verify() {
 
     for module in "${modules[@]}"; do
         echo -e "${BLUE}Running go mod verify in $module${NC}"
-        cd "$REPO_ROOT/$module"
-        if ! go mod verify; then
+        local module_path="$REPO_ROOT"
+        if [[ "$module" != "." ]]; then
+            module_path="$REPO_ROOT/$module"
+        fi
+
+        cd "$module_path"
+        if [[ -n "$TIMEOUT_CMD" ]]; then
+            timeout_verify="$TIMEOUT_CMD 30s"
+        else
+            timeout_verify=""
+        fi
+        if ! $timeout_verify go mod verify; then
             echo -e "${RED}go mod verify failed in $module${NC}"
             exit_code=1
         fi
@@ -146,10 +228,29 @@ run_staticcheck() {
     local modules=("$@")
     local exit_code=0
 
+    # Check if staticcheck is available
+    if ! command -v staticcheck >/dev/null 2>&1; then
+        echo -e "${YELLOW}Warning: staticcheck not found, attempting to install...${NC}"
+        if ! go install honnef.co/go/tools/cmd/staticcheck@latest; then
+            echo -e "${RED}Failed to install staticcheck${NC}"
+            return 1
+        fi
+    fi
+
     for module in "${modules[@]}"; do
         echo -e "${BLUE}Running staticcheck in $module${NC}"
-        cd "$REPO_ROOT/$module"
-        if ! staticcheck ./...; then
+        local module_path="$REPO_ROOT"
+        if [[ "$module" != "." ]]; then
+            module_path="$REPO_ROOT/$module"
+        fi
+
+        cd "$module_path"
+        if [[ -n "$TIMEOUT_CMD" ]]; then
+            timeout_staticcheck="$TIMEOUT_CMD 120s"
+        else
+            timeout_staticcheck=""
+        fi
+        if ! $timeout_staticcheck staticcheck ./...; then
             echo -e "${RED}staticcheck failed in $module${NC}"
             exit_code=1
         fi

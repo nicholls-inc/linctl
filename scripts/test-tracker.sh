@@ -5,7 +5,18 @@ set -e
 # Manages test verification hashes to ensure tests are run before commits
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Validate environment
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    echo -e "${RED}❌ Error: Not in a git repository${NC}" >&2
+    exit 1
+fi
+
+if ! command -v go >/dev/null 2>&1; then
+    echo -e "${RED}❌ Error: Go is not installed or not in PATH${NC}" >&2
+    exit 1
+fi
 
 # Default to pr-agent module for backward compatibility
 DEFAULT_MODULE_PATH=".github/actions/pr-agent"

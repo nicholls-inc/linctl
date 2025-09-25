@@ -29,7 +29,7 @@ func NewTokenStore() (*TokenStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get home directory: %w", err)
 	}
-	
+
 	configPath := filepath.Join(homeDir, ".linctl-oauth-token.json")
 	return &TokenStore{configPath: configPath}, nil
 }
@@ -107,7 +107,7 @@ func (ts *TokenStore) IsTokenExpired(token *StoredToken) bool {
 	if token == nil {
 		return true
 	}
-	
+
 	// Consider token expired if it expires within 5 minutes
 	buffer := 5 * time.Minute
 	return time.Now().Add(buffer).After(token.ExpiresAt)
@@ -119,7 +119,7 @@ func (ts *TokenStore) IsTokenValid() bool {
 	if err != nil {
 		return false
 	}
-	
+
 	return !ts.IsTokenExpired(token)
 }
 
@@ -129,11 +129,11 @@ func (ts *TokenStore) GetValidToken() (*StoredToken, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if ts.IsTokenExpired(token) {
 		return nil, fmt.Errorf("stored token is expired")
 	}
-	
+
 	return token, nil
 }
 
@@ -143,11 +143,11 @@ func (ts *TokenStore) GetValidTokenWithBuffer(buffer time.Duration) (*StoredToke
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if ts.IsTokenExpiredWithBuffer(token, buffer) {
 		return nil, fmt.Errorf("stored token is expired or will expire within buffer")
 	}
-	
+
 	return token, nil
 }
 
@@ -156,7 +156,7 @@ func (ts *TokenStore) IsTokenExpiredWithBuffer(token *StoredToken, buffer time.D
 	if token == nil {
 		return true
 	}
-	
+
 	// Consider token expired if it expires within the specified buffer
 	return time.Now().Add(buffer).After(token.ExpiresAt)
 }
@@ -166,13 +166,13 @@ func (st *StoredToken) ToTokenResponse() *TokenResponse {
 	if st == nil {
 		return nil
 	}
-	
+
 	// Calculate remaining seconds until expiry
 	remainingSeconds := int(time.Until(st.ExpiresAt).Seconds())
 	if remainingSeconds < 0 {
 		remainingSeconds = 0
 	}
-	
+
 	return &TokenResponse{
 		AccessToken: st.AccessToken,
 		TokenType:   st.TokenType,
@@ -188,19 +188,19 @@ func (st *StoredToken) GetTokenInfo() map[string]interface{} {
 			"valid": false,
 		}
 	}
-	
+
 	now := time.Now()
 	isExpired := now.After(st.ExpiresAt)
 	timeUntilExpiry := st.ExpiresAt.Sub(now)
-	
+
 	info := map[string]interface{}{
-		"valid":           !isExpired,
-		"expires_at":      st.ExpiresAt.Format(time.RFC3339),
-		"created_at":      st.CreatedAt.Format(time.RFC3339),
-		"scope":           st.Scope,
-		"token_type":      st.TokenType,
+		"valid":      !isExpired,
+		"expires_at": st.ExpiresAt.Format(time.RFC3339),
+		"created_at": st.CreatedAt.Format(time.RFC3339),
+		"scope":      st.Scope,
+		"token_type": st.TokenType,
 	}
-	
+
 	if !isExpired {
 		info["expires_in_seconds"] = int(timeUntilExpiry.Seconds())
 		info["expires_in_human"] = formatDuration(timeUntilExpiry)
@@ -208,7 +208,7 @@ func (st *StoredToken) GetTokenInfo() map[string]interface{} {
 		info["expired_ago_seconds"] = int(-timeUntilExpiry.Seconds())
 		info["expired_ago_human"] = formatDuration(-timeUntilExpiry)
 	}
-	
+
 	return info
 }
 
@@ -217,18 +217,18 @@ func formatDuration(d time.Duration) string {
 	if d < 0 {
 		return formatDuration(-d) + " ago"
 	}
-	
+
 	if d < time.Minute {
 		return fmt.Sprintf("%.0f seconds", d.Seconds())
 	}
-	
+
 	if d < time.Hour {
 		return fmt.Sprintf("%.0f minutes", d.Minutes())
 	}
-	
+
 	if d < 24*time.Hour {
 		return fmt.Sprintf("%.1f hours", d.Hours())
 	}
-	
+
 	return fmt.Sprintf("%.1f days", d.Hours()/24)
 }

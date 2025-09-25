@@ -35,9 +35,9 @@ const client2 = new LinearClient({
 async function getMyIssues() {
   const me = await linearClient.viewer;
   const myIssues = await me.assignedIssues();
- 
+
   if (myIssues.nodes.length) {
-    myIssues.nodes.map(issue => 
+    myIssues.nodes.map(issue =>
       console.log(`${me.displayName} has issue: ${issue.title}`)
     );
   } else {
@@ -51,7 +51,7 @@ async function getMyIssues() {
 linearClient.viewer.then(me => {
   return me.assignedIssues().then(myIssues => {
     if (myIssues.nodes.length) {
-      myIssues.nodes.map(issue => 
+      myIssues.nodes.map(issue =>
         console.log(`${me.displayName} has issue: ${issue.title}`)
       );
     } else {
@@ -66,13 +66,13 @@ linearClient.viewer.then(me => {
 ```typescript
 async function createIssue() {
   const team = await linearClient.team("team-id");
-  
+
   const issuePayload = await linearClient.createIssue({
     teamId: team.id,
     title: "New Issue",
     description: "Issue description"
   });
-  
+
   if (issuePayload.success) {
     console.log(`Created issue: ${issuePayload.issue?.title}`);
   }

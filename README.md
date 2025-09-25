@@ -65,7 +65,7 @@ linctl docs      # Render the README.md
 ## Important: Default Filters
 
 **By default, `issue list` and `project list` commands only show items created in the last 6 months!**
- 
+
 This improves performance and prevents overwhelming data loads. To see older items:
  - Use `--newer-than 1_year_ago` for items from the last year
  - Use `--newer-than all_time` to see ALL items ever created

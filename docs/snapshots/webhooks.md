@@ -70,14 +70,14 @@ export default async (request) => {
   const signature = createHmac('sha256', process.env.LINEAR_WEBHOOK_SECRET)
     .update(payload)
     .digest('hex');
-  
+
   if (signature !== request.headers['linear-signature']) {
     return new Response('Invalid signature', { status: 401 });
   }
 
   // Process the webhook
   console.log(`Received ${action} action for ${type}`);
-  
+
   return new Response('OK', { status: 200 });
 };
 ```

@@ -1,5 +1,10 @@
+# Pre-commit configuration for linctl
+# This configuration works across different environments (local, CI/CD)
+default_language_version:
+  python: python3
+
 repos:
-  # Go formatting and linting (multi-module)
+  # Go formatting and linting
   - repo: local
     hooks:
       - id: go-fmt
@@ -78,20 +83,14 @@ repos:
         files: \.github/workflows/.*\.ya?ml$
         pass_filenames: false
 
-  # Test verification (ensures tests were run locally for each Go module)
+  # Test verification (ensures tests were run locally for the Go module)
   - repo: local
     hooks:
-      - id: test-verification-cmd
-        name: verify tests have been run (pr-failure-agent)
-        entry: scripts/test-tracker.sh --module-path cmd verify
+      - id: test-verification
+        name: verify tests have been run
+        entry: scripts/test-tracker.sh --module-path . verify
         language: system
-        files: cmd/.*\.go$
-        pass_filenames: false
-      - id: test-verification-pkg
-        name: verify tests have been run (pr-failure-agent)
-        entry: scripts/test-tracker.sh --module-path pkg verify
-        language: system
-        files: pkg/.*\.go$
+        files: \.go$
         pass_filenames: false
 
 

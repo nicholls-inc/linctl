@@ -14,7 +14,7 @@ type ActorParams struct {
 func ResolveActorParams(providedActor, providedAvatarURL string) *ActorParams {
 	// Load actor configuration from environment
 	actorConfig := oauth.LoadActorFromEnvironment()
-	
+
 	return &ActorParams{
 		Actor:     actorConfig.GetActor(providedActor),
 		AvatarURL: actorConfig.GetAvatarURL(providedAvatarURL),

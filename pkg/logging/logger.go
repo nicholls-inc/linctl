@@ -69,7 +69,7 @@ type StructuredLogger struct {
 func NewLogger() Logger {
 	level := InfoLevel
 	format := "text"
-	
+
 	// Check environment variables
 	if levelStr := os.Getenv("LINCTL_LOG_LEVEL"); levelStr != "" {
 		switch strings.ToLower(levelStr) {
@@ -83,13 +83,13 @@ func NewLogger() Logger {
 			level = ErrorLevel
 		}
 	}
-	
+
 	if formatStr := os.Getenv("LINCTL_LOG_FORMAT"); formatStr != "" {
 		if strings.ToLower(formatStr) == "json" {
 			format = "json"
 		}
 	}
-	
+
 	return &StructuredLogger{
 		level:      level,
 		format:     format,
@@ -139,17 +139,17 @@ func (l *StructuredLogger) Error(msg string, fields ...Field) {
 // With creates a new logger with additional base fields
 func (l *StructuredLogger) With(fields ...Field) Logger {
 	newFields := make(map[string]interface{})
-	
+
 	// Copy existing base fields
 	for k, v := range l.baseFields {
 		newFields[k] = v
 	}
-	
+
 	// Add new fields
 	for _, field := range fields {
 		newFields[field.Key] = field.Value
 	}
-	
+
 	return &StructuredLogger{
 		level:      l.level,
 		format:     l.format,
@@ -166,22 +166,22 @@ func (l *StructuredLogger) log(level LogLevel, msg string, fields ...Field) {
 		Message:   msg,
 		Fields:    make(map[string]interface{}),
 	}
-	
+
 	// Add base fields
 	for k, v := range l.baseFields {
 		entry.Fields[k] = v
 	}
-	
+
 	// Add message fields
 	for _, field := range fields {
 		entry.Fields[field.Key] = field.Value
 	}
-	
+
 	// Remove fields if empty
 	if len(entry.Fields) == 0 {
 		entry.Fields = nil
 	}
-	
+
 	if l.format == "json" {
 		l.logJSON(entry)
 	} else {
@@ -197,25 +197,25 @@ func (l *StructuredLogger) logJSON(entry LogEntry) {
 		fmt.Fprintf(l.writer, "[%s] %s %s\n", entry.Timestamp.Format(time.RFC3339), entry.Level, entry.Message)
 		return
 	}
-	
+
 	fmt.Fprintln(l.writer, string(data))
 }
 
 // logText outputs the log entry as human-readable text
 func (l *StructuredLogger) logText(entry LogEntry) {
 	timestamp := entry.Timestamp.Format("2006-01-02 15:04:05")
-	
-	if entry.Fields == nil || len(entry.Fields) == 0 {
+
+	if len(entry.Fields) == 0 {
 		fmt.Fprintf(l.writer, "[%s] %s %s\n", timestamp, entry.Level, entry.Message)
 		return
 	}
-	
+
 	// Format fields as key=value pairs
 	var fieldStrs []string
 	for k, v := range entry.Fields {
 		fieldStrs = append(fieldStrs, fmt.Sprintf("%s=%v", k, v))
 	}
-	
+
 	fmt.Fprintf(l.writer, "[%s] %s %s %s\n", timestamp, entry.Level, entry.Message, strings.Join(fieldStrs, " "))
 }
 

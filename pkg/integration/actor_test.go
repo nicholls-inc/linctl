@@ -11,7 +11,7 @@ func TestActorParameterIntegration(t *testing.T) {
 	// Save original environment
 	originalActor := os.Getenv("LINEAR_DEFAULT_ACTOR")
 	originalAvatarURL := os.Getenv("LINEAR_DEFAULT_AVATAR_URL")
-	
+
 	// Clean up after test
 	defer func() {
 		os.Setenv("LINEAR_DEFAULT_ACTOR", originalActor)
@@ -154,7 +154,7 @@ func TestActorParameterEndToEndFlow(t *testing.T) {
 	// Save original environment
 	originalActor := os.Getenv("LINEAR_DEFAULT_ACTOR")
 	originalAvatarURL := os.Getenv("LINEAR_DEFAULT_AVATAR_URL")
-	
+
 	// Clean up after test
 	defer func() {
 		os.Setenv("LINEAR_DEFAULT_ACTOR", originalActor)
@@ -171,10 +171,10 @@ func TestActorParameterEndToEndFlow(t *testing.T) {
 		expectedParams map[string]interface{}
 	}{
 		{
-			name:         "complete flow with flags",
-			envActor:     "Env Agent",
-			envAvatarURL: "https://env.com/avatar.png",
-			flagActor:    "Flag Agent",
+			name:          "complete flow with flags",
+			envActor:      "Env Agent",
+			envAvatarURL:  "https://env.com/avatar.png",
+			flagActor:     "Flag Agent",
 			flagAvatarURL: "https://flag.com/avatar.png",
 			expectedParams: map[string]interface{}{
 				"actor":     "Flag Agent",
@@ -182,10 +182,10 @@ func TestActorParameterEndToEndFlow(t *testing.T) {
 			},
 		},
 		{
-			name:         "complete flow with environment only",
-			envActor:     "Env Agent",
-			envAvatarURL: "https://env.com/avatar.png",
-			flagActor:    "",
+			name:          "complete flow with environment only",
+			envActor:      "Env Agent",
+			envAvatarURL:  "https://env.com/avatar.png",
+			flagActor:     "",
 			flagAvatarURL: "",
 			expectedParams: map[string]interface{}{
 				"actor":     "Env Agent",
@@ -201,10 +201,10 @@ func TestActorParameterEndToEndFlow(t *testing.T) {
 			expectedParams: map[string]interface{}{},
 		},
 		{
-			name:         "complete flow with partial override",
-			envActor:     "Env Agent",
-			envAvatarURL: "https://env.com/avatar.png",
-			flagActor:    "Flag Agent",
+			name:          "complete flow with partial override",
+			envActor:      "Env Agent",
+			envAvatarURL:  "https://env.com/avatar.png",
+			flagActor:     "Flag Agent",
 			flagAvatarURL: "",
 			expectedParams: map[string]interface{}{
 				"actor":     "Flag Agent",
@@ -269,11 +269,11 @@ func TestActorParameterEndToEndFlow(t *testing.T) {
 func TestActorParameterConcurrency(t *testing.T) {
 	// Test that actor parameter resolution is thread-safe
 	// This is important for CLI tools that might process multiple commands concurrently
-	
+
 	// Save original environment
 	originalActor := os.Getenv("LINEAR_DEFAULT_ACTOR")
 	originalAvatarURL := os.Getenv("LINEAR_DEFAULT_AVATAR_URL")
-	
+
 	// Clean up after test
 	defer func() {
 		os.Setenv("LINEAR_DEFAULT_ACTOR", originalActor)
@@ -287,9 +287,9 @@ func TestActorParameterConcurrency(t *testing.T) {
 	// Run multiple goroutines that resolve actor parameters
 	const numGoroutines = 10
 	const numIterations = 100
-	
+
 	results := make(chan bool, numGoroutines)
-	
+
 	for i := 0; i < numGoroutines; i++ {
 		go func(id int) {
 			success := true
@@ -299,26 +299,26 @@ func TestActorParameterConcurrency(t *testing.T) {
 				flagAvatarURL := ""
 				expectedActor := "Base Agent"
 				expectedAvatarURL := "https://base.com/avatar.png"
-				
+
 				if id%2 == 0 {
 					flagActor = "Goroutine Agent"
 					expectedActor = "Goroutine Agent"
 				}
-				
+
 				if id%3 == 0 {
 					flagAvatarURL = "https://goroutine.com/avatar.png"
 					expectedAvatarURL = "https://goroutine.com/avatar.png"
 				}
-				
+
 				actorParams := utils.ResolveActorParams(flagActor, flagAvatarURL)
-				
+
 				actor := ""
 				avatarURL := ""
 				if actorParams != nil {
 					actor = actorParams.Actor
 					avatarURL = actorParams.AvatarURL
 				}
-				
+
 				if actor != expectedActor || avatarURL != expectedAvatarURL {
 					success = false
 					break
@@ -327,7 +327,7 @@ func TestActorParameterConcurrency(t *testing.T) {
 			results <- success
 		}(i)
 	}
-	
+
 	// Wait for all goroutines to complete
 	for i := 0; i < numGoroutines; i++ {
 		success := <-results
@@ -335,23 +335,4 @@ func TestActorParameterConcurrency(t *testing.T) {
 			t.Error("Concurrent actor parameter resolution failed")
 		}
 	}
-}
-
-// Helper function for case-insensitive string contains check
-func containsIgnoreCase(s, substr string) bool {
-	return len(s) >= len(substr) && 
-		   (s == substr || 
-		    len(s) > len(substr) && 
-		    (s[:len(substr)] == substr || 
-		     s[len(s)-len(substr):] == substr ||
-		     containsIgnoreCaseHelper(s, substr)))
-}
-
-func containsIgnoreCaseHelper(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
