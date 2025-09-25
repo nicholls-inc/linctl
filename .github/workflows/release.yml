@@ -5,7 +5,8 @@ name: Release linctl
 # Go to Settings → Actions → General → Workflow permissions
 # - Select "Read and write permissions"
 # - Check "Allow GitHub Actions to create and approve pull requests"
-# Alternatively, create a RELEASE_PLEASE_TOKEN secret with repo scope
+# If you get permission errors, create a RELEASE_PLEASE_TOKEN secret with repo scope
+# and change the token line to: token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
 on:
   push:
@@ -41,7 +42,7 @@ jobs:
           release-type: go
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   build-and-release:
     runs-on: ubuntu-latest
