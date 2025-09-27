@@ -24,6 +24,8 @@
     "ghcr.io/devcontainers/features/node:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers-extra/features/pre-commit:2": {},
-    "ghcr.io/nicholls-inc/linctl/linctl:1": {}
+    "ghcr.io/nicholls-inc/linctl/linctl:1.1.0": {
+      "version": "latest"
+    }
   }
 }
