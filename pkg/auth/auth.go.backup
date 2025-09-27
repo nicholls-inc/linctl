@@ -66,39 +66,10 @@ func loadAuth() (*AuthConfig, error) {
 		return nil, err
 	}
 
-	// First unmarshal into a generic map to detect legacy fields
-	var rawConfig map[string]interface{}
-	err = json.Unmarshal(data, &rawConfig)
+	var config AuthConfig
+	err = json.Unmarshal(data, &config)
 	if err != nil {
 		return nil, err
-	}
-
-	// Check if legacy OAuth token exists and needs cleanup
-	needsCleanup := false
-	if _, hasOAuthToken := rawConfig["oauth_token"]; hasOAuthToken {
-		needsCleanup = true
-		if os.Getenv("LINCTL_DEBUG") != "" {
-			fmt.Printf("[DEBUG AUTH] Found legacy oauth_token in auth config, will clean up\n")
-		}
-	}
-
-	// Create clean config with only supported fields
-	config := AuthConfig{}
-	if apiKey, ok := rawConfig["api_key"].(string); ok {
-		config.APIKey = apiKey
-	}
-
-	// If cleanup is needed, save the cleaned config
-	if needsCleanup {
-		if os.Getenv("LINCTL_DEBUG") != "" {
-			fmt.Printf("[DEBUG AUTH] Cleaning up legacy OAuth token from auth config\n")
-		}
-		if saveErr := saveAuth(config); saveErr != nil {
-			// Log warning but don't fail - the config is still usable
-			if os.Getenv("LINCTL_DEBUG") != "" {
-				fmt.Printf("[DEBUG AUTH] Warning: failed to clean up legacy auth config: %v\n", saveErr)
-			}
-		}
 	}
 
 	return &config, nil
